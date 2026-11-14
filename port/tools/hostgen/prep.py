@@ -711,6 +711,14 @@ def has_definition(text: str, name: str) -> bool:
     return name in text and _definition(text, name) is not None
 
 
+def _declared_as(text: str, name: str, prototype: str) -> str:
+    """TEXT with each one-line declaration of the function NAME given PROTOTYPE's type (from
+    _prototype). An asm label on the line stays."""
+    pattern = re.compile(r'^([ \t]*)(?:extern[ \t]+)?(?!(?:return|else|case|goto)\b)[A-Za-z_][\w \t\*]*?[ \t\*]' + re.escape(name)
+                         + r'\s*\([^;{}\n]*?\)([ \t]*(?:__asm__|asm)\s*\(\s*"[^"]*"\s*\))?[ \t]*;', re.M)
+    return pattern.sub(lambda m: m.group(1) + prototype[:-1] + (m.group(2) or "") + ";", text)
+
+
 def use_overrides(text: str, overrides: dict[str, str], used: set[str]) -> str:
     """Puts the port's own C in place of matched C (hostgen.json "overrides").
 
@@ -733,9 +741,15 @@ def use_overrides(text: str, overrides: dict[str, str], used: set[str]) -> str:
         # a result the matching C declares void), on the line the matched definition started.
         own = overrides[name]
         keep = ""
+        mine = _definition(prepare(own), name)
         if _named_in(text[span[1]:], name):
-            mine = _definition(prepare(own), name)
             keep = _prototype(prepare(own)[mine[0]:mine[1]], name) if mine else _prototype(text[span[0]:span[1]], name)
+        if mine:
+            # A prototype before the matched definition gets the override's type and keeps its asm
+            # label; else Clang refuses the file (rac1-ntsc's FUN_L00_002371e0: `void (void)` in the
+            # matched C, registers as parameters in the override).
+            text = _declared_as(text[:span[0]], name, _prototype(prepare(own)[mine[0]:mine[1]], name)) + text[span[0]:]
+            span = _definition(text, name)
         text = text[:span[0]] + keep + "\n" * text.count("\n", span[0], span[1]) + text[span[1]:]
         used.add(name)
         if id(own) not in added:   # one file of C for several functions goes in once

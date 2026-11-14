@@ -1,0 +1,6 @@
+# Calls that differ between the places of a folded function (hostgen.json "call_copies"): hostgen
+# calls the target of the running copy's own jal, with the EE's registers. Written by hand.
+# FUN_L00_002371e0 (hand/matched_jal_wrapper.c): level 0's 0x002371E0 calls 0x00235EA0; Kalebo
+# III's 0x002CB600 calls mark_moby_for_removal, and so on for each place.
+# caller	callee	home	canon	size	own	exe
+FUN_L00_002371e0	FUN_L00_00235ea0	0	002371E0	28	00235EA0	00000000

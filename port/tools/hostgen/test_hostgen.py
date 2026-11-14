@@ -3162,6 +3162,23 @@ class Preparation(unittest.TestCase):
         self.assertIn("g = n + 1;", out)
         self.assertIn("g = i;", out)
 
+    def test_an_override_with_other_parameters_retypes_the_prototype_ahead(self):
+        # rac1-ntsc's FUN_L00_002371e0 is matched as `void (void)` but passes its registers on: the
+        # override names them, and the prototype ahead of the matched definition takes its type
+        # (else Clang refuses the file: conflicting types), keeping its asm label.
+        src = ('void f(void) __asm__("FUN_1");\n'
+               "void h(void) { return f(); }\n"
+               "void f(void) {\n"
+               "    g();\n"
+               "}\n")
+        used: set[str] = set()
+        out = prep.use_overrides(src, {"f": "unsigned long f(unsigned long a0, float f12) { return a0; }\n"}, used)
+        lines = out.split("\n")
+        self.assertEqual(lines[0], 'unsigned long long f(unsigned long long a0, float f12) __asm__("FUN_1");')
+        self.assertEqual(lines[1], "void h(void) { return f(); }")
+        self.assertEqual(lines[2], "")
+        self.assertIn("return a0;", out)
+
     def test_wide_cast_is_named(self):
         """A 128-bit integer as a type name becomes openrac_ti: Clang drops the attribute there."""
         src = ("*(int __attribute__((mode(TI))) *)a = *(unsigned int __attribute__((mode(TI))) *)(b + 0x10);\n"
