@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright (c) 2026 the OpenRAC contributors */
 
@@ -55,6 +57,13 @@ static void run_callbacks(gaddr count_at, gaddr functions, gaddr arguments) {
         }
 
         GFN(void (*)(int), GREF(gaddr, functions + (gaddr)index * 4u))((int)argument);
+        if (getenv("DBG_PART") && argument && argument < 0x01FFFF00u && GREF(uint16_t, argument + 0xAAu) == 167) {
+            const gaddr hero = OPENRAC_DATA(RAC2_ADDR(0x00189E20u));
+            fprintf(stderr, "DBGC beam %x pos %.3f %.3f %.3f hv %.3f %.3f %.3f mode %d\n", argument,
+                    GREF(float, argument + 0x10u), GREF(float, argument + 0x14u), GREF(float, argument + 0x18u),
+                    GREF(float, hero + 0x150u), GREF(float, hero + 0x154u), GREF(float, hero + 0x158u),
+                    GREF(int, hero + 0x2294u));
+        }
 
         /* Subsequent callbacks can emit unrelated world-space geometry. */
         if (attachment != 0) {

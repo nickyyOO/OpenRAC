@@ -532,6 +532,16 @@ void effect_quad(std::span<const std::uint8_t> ram, const openrac_game_quad& qua
     if (quad.source < g->effect_sources.size()) {
         ++g->effect_sources[quad.source];
     }
+    if (std::getenv("DBG_PART")) {
+        float m = 0;
+        for (int a = 0; a < 4; ++a) for (int b = 0; b < 4; ++b) {
+            const float dx = quad.corner[a][0] - quad.corner[b][0], dy = quad.corner[a][1] - quad.corner[b][1], dz = quad.corner[a][2] - quad.corner[b][2];
+            m = std::max(m, std::sqrt(dx*dx+dy*dy+dz*dz));
+        }
+        std::uint16_t cls = 0;
+        if (quad.parent != 0 && quad.parent < 0x01FFFF00u) std::memcpy(&cls, ram.data() + quad.parent + 0xAA, 2);
+        std::fprintf(stderr, "DBGQ parent %x cls %u id %u size %.3f c0 %.2f %.2f %.2f %.2f rgba %08x\n", quad.parent, cls, quad.id, m, quad.corner[0][0], quad.corner[0][1], quad.corner[0][2], quad.corner[0][3], quad.rgba[0]);
+    }
     renderer::EffectQuad q;
     std::memcpy(q.corner, quad.corner, sizeof(q.corner));
     std::memcpy(q.rgba, quad.rgba, sizeof(q.rgba));
@@ -1096,6 +1106,9 @@ void particle_quads(std::span<const std::uint8_t> ram, const host::GameState& st
     for (const State::Particle& p : g->particles) {
         const std::uint8_t* r = p.record.data();
         const int kind = r[1] & 3;
+        if (std::getenv("DBG_PART") && (r[0] == 0x15 || r[0] == 0x17)) {
+            std::fprintf(stderr, "DBGR type %02x kind %d flags %02x p1 %.2f %.2f %.2f p2 %.2f %.2f %.2f px %x\n", r[0], kind, r[1], f32(r + 0x10), f32(r + 0x14), f32(r + 0x18), f32(r + 0x20), f32(r + 0x24), f32(r + 0x28), p.pixels);
+        }
         if (kind == 2 || p.pixels == 0 || p.clut == 0) {
             cover(r, kind == 2 ? "lines" : "untextured");
             continue;
@@ -1147,6 +1160,10 @@ void particle_quads(std::span<const std::uint8_t> ram, const host::GameState& st
                 q.corner[k][2] = p1[2];
             }
         } else {
+            if (std::getenv("DBG_PART")) {
+                const float dx = p2[0] - p1[0], dy = p2[1] - p1[1], dz = p2[2] - p1[2];
+                std::fprintf(stderr, "DBGP type %02x kind3 p1 %.2f %.2f %.2f p2 %.2f %.2f %.2f len %.2f\n", r[0], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], std::sqrt(dx*dx+dy*dy+dz*dz));
+            }
             const float w1 = f32(r + 0x1C);
             const float k2 = f32(r + 0x2C);
             const float e[3] = {p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]};
