@@ -559,11 +559,28 @@ mod tests {
         let made = file.find(&scope, "port-levels").and_then(|a| a.artifact.clone()).expect("port-levels makes a file");
         assert!(made.ends_with(".json") && made.contains("/levels-"), "{made}");
         assert!(file.find(&scope, "port-levels-check").is_none(), "a check now: Play should wait for its stamp");
-        let play = file.find(&scope, "play").unwrap();
-        assert!(play.needs.iter().any(|n| n.path == made), "play does not wait for {made}");
-        let at = play.args.iter().position(|a| a == "--levels").expect("play has no --levels");
-        let dir = play.args[at + 1].trim_start_matches("{root}/");
-        assert!(made.starts_with(&format!("{dir}/")), "play draws from {dir}, the levels are {made}");
+        for id in ["play", "play-edited"] {
+            let play = file.find(&scope, id).unwrap_or_else(|| panic!("rac2/ntsc has no {id}"));
+            assert!(play.needs.iter().any(|n| n.path == made), "{id} does not wait for {made}");
+            let at = play.args.iter().position(|a| a == "--levels").unwrap_or_else(|| panic!("{id} has no --levels"));
+            let dir = play.args[at + 1].trim_start_matches("{root}/");
+            assert!(made.starts_with(&format!("{dir}/")), "{id} draws from {dir}, the levels are {made}");
+        }
+    }
+
+    /// Going Commando plays with the packs that are on (AI voices made in OpenRAC Editor, textures,
+    /// models): Play with your edits reads the folder overrides-stack writes, on every version.
+    #[test]
+    fn going_commando_plays_the_stacked_packs() {
+        let file = actions::load(&checkout()).unwrap();
+        for version in ["ntsc", "pal", "ntsc2"] {
+            let scope = Scope::Version(format!("rac2/{version}"));
+            let stack = file.find(&scope, "overrides-stack").unwrap_or_else(|| panic!("rac2/{version} has no stack"));
+            let out = stack.args.iter().position(|a| a == "--out").map(|i| stack.args[i + 1].clone()).unwrap();
+            let edited = file.find(&scope, "play-edited").unwrap_or_else(|| panic!("rac2/{version} has no play-edited"));
+            let at = edited.args.iter().position(|a| a == "--mods").expect("play-edited has no --mods");
+            assert_eq!(edited.args[at + 1], out, "rac2/{version} plays mods from elsewhere than the stack");
+        }
     }
 
     /// NTSC-U's levels are read from its own disc into a folder of their own, checked by its own
