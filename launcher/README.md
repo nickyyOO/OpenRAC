@@ -70,6 +70,35 @@ the launcher never downloads, uploads or bundles a game.
 keeps the disc image and the saves. The full flow is in
 [docs/INTEGRATION.md](docs/INTEGRATION.md#2-setting-a-game-up).
 
+### Start a game directly
+
+Add a launch option to start a game without the launcher's window. Use it
+for a desktop shortcut, Steam, or another game launcher.
+
+| Option             | Starts                                                   |
+| ------------------ | -------------------------------------------------------- |
+| `--rac1`           | Ratchet & Clank                                          |
+| `--rac2`           | Going Commando (`--rac3` and `--rac4` work the same way) |
+| `--play rac1-ntsc` | one disc version by name (`rac1-pal`, `rac2-ntsc`, ...)  |
+| `--update-mods`    | with one of the above: update the game's mods first      |
+
+- `--rac1` plays the disc you set up. With two discs it plays the one the
+  launcher shows on the game's page.
+- The launcher stays hidden and closes when the game closes, so the other
+  launcher can track play time.
+- If the game cannot start (no disc set up yet, say), the launcher opens on
+  that game's page instead.
+- If the launcher is already open, the game starts from it and the new start
+  ends at once. Then the other launcher cannot track play time.
+
+Examples:
+
+- Windows: `"OpenRAC Launcher.exe" --rac1`
+- Linux: `./OpenRAC_Launcher.AppImage --rac2` (your AppImage's name)
+- macOS: `open -n -a "OpenRAC Launcher" --args --rac1`
+
+Not on Android. The code is in [core/src/shortcut.rs](core/src/shortcut.rs).
+
 ### A game's page
 
 Every game has the same page. Its main button always names the next step:
