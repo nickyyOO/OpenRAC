@@ -63,6 +63,20 @@ The game writes its log in its data folder
 (`files/games/active/<game>/data/`), and the launcher shows it with the crash
 reports on the game's page.
 
+What the game cannot report (a launcher crash, a Java crash, a crash in a
+driver before the game's handler is set, a hang, a kill for low memory) goes to
+`files/logs`, **Crash logs** in the Files app (ExitReports.kt, Android 11 and
+later). A native crash also gets a `.tombstone.pb` (read it with `pbtombstone`).
+
+"App not installed" with no other words usually means one of these:
+
+- An OpenRAC with the same package is installed, signed with another key
+  (an older build, or a local one). Uninstall it first; saves stay only if the
+  key matches.
+- Too little free space: the APK unpacks its libraries, so it needs about
+  three times its size free.
+- The APK did not download fully. Download it again and check its size.
+
 ## Driving a debug build over adb
 
 A debug build (CI's APK, or `tools/build_android.py` without `--release`) can be started and

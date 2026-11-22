@@ -44,6 +44,8 @@ class MainActivity : TauriActivity() {
     // The environment the Rust side reads, before it starts; OpenRAC's tools are unpacked beside
     // it when they have to be (the page waits for them: toolsReady).
     OpenracSetup.prepare(this)
+    // Crashes go to files/logs, where the player can find them (ExitReports.kt).
+    ExitReports.catchUncaught(this)
     super.onCreate(savedInstanceState)
     hideSystemBars()
     askForNotifications()
@@ -90,6 +92,8 @@ class MainActivity : TauriActivity() {
     // Back in front: Recents may take its picture again (OpenracPlugin's play turned it off).
     if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(true)
     UpdateReceiver.showWaiting(this)
+    // Back from a game that crashed or was killed: its log is written now.
+    ExitReports.collect(this)
   }
 
   override fun onPause() {

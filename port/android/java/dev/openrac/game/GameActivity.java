@@ -23,6 +23,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
+import dev.openrac.launcher.ExitReports;
 import dev.openrac.launcher.FilesProvider;
 
 import java.io.File;
@@ -66,6 +67,8 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // A Java crash of the game's process goes to files/logs (ExitReports.kt).
+        ExitReports.catchUncaught(this);
         Intent intent = getIntent();
         String named = intent.getStringExtra(EXTRA_LIBRARY);
         if (named != null && named.matches("openrac-[a-z0-9-]+")) {
