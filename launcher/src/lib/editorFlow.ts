@@ -26,7 +26,7 @@ export type StageKind =
   | "ready";
 
 /** What a button of the panel does. */
-export type Step = "set-up" | "get-editor" | "prepare" | "open" | "update" | "repair" | "pack" | "play";
+export type Step = "set-up" | "get-editor" | "prepare" | "open" | "update" | "repair" | "pack";
 
 export interface Stage {
   kind: StageKind;
@@ -49,7 +49,7 @@ export interface FlowInput {
   lacksEditor: string | null;
   /** OpenRAC Editor is there but brings no steps for this version. */
   unsupported?: boolean;
-  /** The game's levels are not packed back yet (early access): no pack or play steps. */
+  /** The game's levels are not packed back yet (early access): no pack step. */
   early: boolean;
   extracting: Job | null;
   packing: Job | null;
@@ -64,7 +64,6 @@ export const STEP_LABEL: Record<Step, string> = {
   update: "Update project",
   repair: "Repair",
   pack: "Pack your changes",
-  play: "Play with your edits",
 };
 
 /** Level names in a sentence: "Veldin, Novalis and 3 more". */
@@ -239,12 +238,11 @@ export function editorStage(input: FlowInput): Stage {
       kind: "packed",
       tone: "ok",
       title: "Your changes are packed",
-      line: `${plural(state.packedLevels, "level")} changed. Play with your edits starts the game with them; you can turn them off again in Mods, under Play.`,
+      line: `${plural(state.packedLevels, "level")} changed. Press Play Level in OpenRAC Editor to try them in the game.`,
       detail: state.packedExpandedLevels.length
         ? `${state.packedExpandedLevels.length === 1 ? "One level uses" : `${state.packedExpandedLevels.length} levels use`} streams larger than the original disc slots. The disc stays unchanged, and OpenRAC gives these streams a 256 MiB RAM arena. RAC1's own object-table and level-format limits still apply.`
         : undefined,
-      primary: "play",
-      secondary: ["open"],
+      primary: "open",
     };
   }
   return {

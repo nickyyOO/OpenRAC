@@ -8,7 +8,7 @@
   // order of the states are lib/editorFlow.ts's. A failed step is said in a player's words
   // (lib/toolErrors.ts), never in the tool's: what it printed is behind "Show details".
   import { api, type EditorState, type GameView, type VersionView } from "$lib/api";
-  import { app, guardShown, installEditor, jobs, run, runChain, saveConfig, toast } from "$lib/app.svelte";
+  import { app, guardShown, installEditor, jobs, run, runChain, toast } from "$lib/app.svelte";
   import {
     LEVEL_TOOL_TEXT,
     LEVELS_SECTION,
@@ -202,12 +202,6 @@
       case "pack":
         if (pack) await run(scope, pack);
         return;
-      case "play":
-        if (!app.config) return;
-        if (!app.config.playWithMods) await saveConfig({ ...app.config, playWithMods: true });
-        app.version = version.key;
-        app.page = "game";
-        return;
       case "start-over":
         levelsHeading?.scrollIntoView({ behavior: "smooth", block: "start" });
         levelsHeading?.focus({ preventScroll: true });
@@ -247,7 +241,7 @@
     return false;
   };
 
-  const ICON: Record<Step, "disc" | "download" | "edit" | "refresh" | "save" | "play"> = {
+  const ICON: Record<Step, "disc" | "download" | "edit" | "refresh" | "save"> = {
     "set-up": "disc",
     "get-editor": "download",
     prepare: "edit",
@@ -255,7 +249,6 @@
     update: "refresh",
     repair: "refresh",
     pack: "save",
-    play: "play",
   };
 
   const picksLevel = (step: Step) => step === "open" || step === "prepare";

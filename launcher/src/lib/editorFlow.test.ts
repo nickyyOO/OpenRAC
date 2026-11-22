@@ -47,7 +47,7 @@ describe("editorStage", () => {
     expect(edited.line).toContain("Veldin");
     expect(editorStage(input({ packing: job("editor-pack") })).kind).toBe("packing");
     const packed = editorStage(input({ state: state({ packedAt: 1, packedLevels: 2 }) }));
-    expect([packed.kind, packed.primary]).toEqual(["packed", "play"]);
+    expect([packed.kind, packed.primary]).toEqual(["packed", "open"]);
     const expanded = editorStage(
       input({ state: state({ packedAt: 1, packedLevels: 2, packedExpandedLevels: [0, 3] }) }),
     );
