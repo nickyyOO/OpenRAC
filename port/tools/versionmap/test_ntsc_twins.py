@@ -18,10 +18,6 @@ NOT_ON_NTSC = {
     "func_00224C30",
     # rac1_version.h: the boot loop's picture goes through draw_bootImage's wrap instead.
     "func_001F7680",
-    # Custom map destinations on the ship's list: PAL's until a map is carried.
-    "func_00222848",
-    "func_0021BB90",
-    "func_L00_00290030",
     # Enhanced Novalis water: named in rac1-pal/host/water.c; a look, nothing shared.
     "func_L01_002FE498",
     "func_L01_002F74D0",
