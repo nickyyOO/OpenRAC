@@ -15,8 +15,11 @@
 //
 // A run's file holds `bytes` bytes; its sectors past them read as zeros (the
 // padding after a file of the file system, which the extractor checked). The
-// runs cover every sector, in order, so a read anywhere gives the bytes the
-// disc has there without the image being opened.
+// runs cover every sector, in order. By default the extractor writes one run,
+// the image beside the map (disc.iso): no second copy of the disc. A run whose
+// file is gone (the launcher replaced the files with that one run while a game
+// had the old map) is read from disc.iso at the run's sectors, which hold the
+// same bytes.
 //
 // `open_sector_map` is an ImageSource over the map: IsoImage and Disc read
 // through it as through an image, and IsoImage::open takes the folder in place
@@ -79,9 +82,11 @@ private:
     };
 
     std::size_t run_at(u32 sector) const;
+    std::ifstream* open_file(std::size_t key, const std::filesystem::path& path) const;
     void read_run(std::size_t run, u64 at, std::span<u8> dst) const;
 
     std::vector<SectorRun> m_runs;
+    std::filesystem::path m_image;
     u32 m_sectors = 0;
     std::unique_ptr<std::mutex> m_lock = std::make_unique<std::mutex>();
     mutable std::vector<Open> m_open;

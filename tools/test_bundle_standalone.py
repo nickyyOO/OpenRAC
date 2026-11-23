@@ -141,7 +141,7 @@ class PlayerActions(unittest.TestCase):
         self.assertEqual(check["makes"], "{data}/port/pal/verified-4.json")
         self.assertEqual(check["args"][check["args"].index("--levels") + 1], "{data}/port/pal")
         self.assertEqual([need["path"] for need in check["needs"]], [self.pal["port-levels"]["artifact"]])
-        # And for the disc's files, which the game reads in place of the image.
+        # And for the sector map the game reads the disc by.
         files = self.pal["disc-files"]
         self.assertEqual(files["makes"], "{data}/iso_data/rac1/sectors.tsv")
         self.assertEqual(files["args"][:2], ["tools/extractor.py", "{disc}"])

@@ -130,8 +130,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -153,7 +153,7 @@
         ],
         "makes": "{data}/iso_data/rac1/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -365,7 +365,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/pal/verified-4.json",
@@ -486,7 +486,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           }
         ],
         "docs": "docs/port/TEXTURE_PACKS.md#export-without-playing"
@@ -540,7 +540,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/pal/verified-4.json",
@@ -712,7 +712,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/pal/verified-4.json",
@@ -826,8 +826,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -849,7 +849,7 @@
         ],
         "makes": "{data}/iso_data/rac1/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -1061,7 +1061,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/ntsc/verified-4.json",
@@ -1182,7 +1182,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           }
         ],
         "docs": "docs/port/TEXTURE_PACKS.md#export-without-playing"
@@ -1236,7 +1236,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/ntsc/verified-4.json",
@@ -1408,7 +1408,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/ntsc/verified-4.json",
@@ -1637,8 +1637,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -1660,7 +1660,7 @@
         ],
         "makes": "{data}/iso_data/rac1/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -1775,7 +1775,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/pal1/verified-4.json",
@@ -1809,7 +1809,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/pal1/verified-4.json",
@@ -2038,8 +2038,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -2061,7 +2061,7 @@
         ],
         "makes": "{data}/iso_data/rac1/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -2176,7 +2176,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/jp/verified-4.json",
@@ -2210,7 +2210,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac1/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac1/jp/verified-4.json",
@@ -2420,7 +2420,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           }
         ],
         "docs": "docs/port/TEXTURE_PACKS.md#export-without-playing"
@@ -2474,7 +2474,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/ntsc/levels-20.json",
@@ -2540,8 +2540,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -2563,7 +2563,7 @@
         ],
         "makes": "{data}/iso_data/rac2/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -2689,7 +2689,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/ntsc/levels-20.json",
@@ -2729,7 +2729,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/ntsc/levels-20.json",
@@ -2959,8 +2959,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -2982,7 +2982,7 @@
         ],
         "makes": "{data}/iso_data/rac2/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -3108,7 +3108,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/pal/levels-20.json",
@@ -3148,7 +3148,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/pal/levels-20.json",
@@ -3378,8 +3378,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -3401,7 +3401,7 @@
         ],
         "makes": "{data}/iso_data/rac2/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -3527,7 +3527,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/ntsc2/levels-20.json",
@@ -3567,7 +3567,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac2/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac2/ntsc2/levels-20.json",
@@ -3761,8 +3761,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -3784,7 +3784,7 @@
         ],
         "makes": "{data}/iso_data/rac3/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -3912,7 +3912,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac3/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac3/ntsc/levels-16.json",
@@ -3951,7 +3951,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac3/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac3/ntsc/levels-16.json",
@@ -4145,8 +4145,8 @@
       },
       {
         "id": "disc-files",
-        "label": "Unpack the disc's files",
-        "description": "Writes your disc's data out as files, with the map the game reads them by: the game reads these files, never the disc image. A few minutes and about as much space as the disc, once.",
+        "label": "Map the disc",
+        "description": "Checks your disc image and writes the map the game reads it by (sectors.tsv). A minute or two, once, and no extra space.",
         "kind": "build",
         "area": "port",
         "state": "unverified",
@@ -4168,7 +4168,7 @@
         ],
         "makes": "{data}/iso_data/rac3/sectors.tsv",
         "docs": "port/assets/disc/README.md",
-        "todo": "Run it from the desktop app. Set-ups made before the game read the disc's files (2026-11-22) have only the image and the boot executable: Play waits for this step, which reads the image the set-up kept (or the one in your games folder) into iso_data, the disc's file system's files at their paths, every other sector as lumps (lumps/) and the sector map (sectors.tsv).",
+        "todo": "Set-ups made before the game read through the sector map have only the image and the boot executable: Play waits for this step. It sets the disc up again from the image the set-up kept (or the one in your games folder); the map reads every sector from that image.",
         "platforms": [
           "linux",
           "macos",
@@ -4296,7 +4296,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac3/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac3/pal/levels-16.json",
@@ -4335,7 +4335,7 @@
         "needs": [
           {
             "path": "{data}/iso_data/rac3/sectors.tsv",
-            "from": "the disc's files (Unpack the disc's files)"
+            "from": "the disc's sector map (Map the disc)"
           },
           {
             "path": "assets/port/rac3/pal/levels-16.json",

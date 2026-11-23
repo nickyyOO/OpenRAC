@@ -115,6 +115,49 @@ void folder_reads_as_image() {
     fs::remove_all(root, ignored);
 }
 
+// The extractor's default: one run, the image beside the map. And a map of files whose files
+// are gone (the launcher swapped them for that one run while a game had the old map): their
+// sectors come from the image.
+void image_beside_the_map() {
+    std::vector<u8> data(3000, 0x5A);
+    std::vector<u8> image = make_iso(40, {{"DATA.BIN", data}});
+    for (std::size_t i = 0; i < 2 * kSectorSize; ++i) {
+        image.push_back(static_cast<u8>(i * 5 + 3));
+    }
+    const u32 sectors = static_cast<u32>(image.size() / kSectorSize);
+    const fs::path root = scratch();
+    write(root / "disc.iso", image);
+    std::ofstream(root / "sectors.tsv")
+        << kSectorMapHeader << "\n"
+        << "0\t" << sectors << "\t" << image.size() << "\tdisc.iso\n";
+    std::vector<u8> whole(image.size());
+    SectorMap::load(root).read(0, whole);
+    CHECK(whole == image);
+
+    // Two runs of files, both gone: read from disc.iso at their sectors.
+    const u32 half = sectors / 2;
+    std::ofstream(root / "sectors.tsv")
+        << kSectorMapHeader << "\n"
+        << "0\t" << half << "\t" << half * kSectorSize << "\tlumps/a.bin\n"
+        << half << "\t" << sectors - half << "\t" << (sectors - half) * kSectorSize
+        << "\tlumps/b.bin\n";
+    std::fill(whole.begin(), whole.end(), 0);
+    SectorMap::load(root).read(0, whole);
+    CHECK(whole == image);
+
+    // Without the image a gone file is an error, as before.
+    fs::remove(root / "disc.iso");
+    bool threw = false;
+    try {
+        SectorMap::load(root).read(0, whole);
+    } catch (const IoError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
 // A map that is not one: the wrong first line, a gap between runs, a path out of the folder.
 void refused() {
     const fs::path root = scratch();
@@ -141,6 +184,7 @@ void refused() {
 
 int main() {
     folder_reads_as_image();
+    image_beside_the_map();
     refused();
     return result();
 }

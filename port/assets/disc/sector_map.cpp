@@ -19,6 +19,10 @@ namespace {
 // Files kept open at once: a level load reads a few lumps in turn, the music its own.
 constexpr std::size_t kOpenFiles = 8;
 
+// The image beside the map, read for a run whose file is gone.
+constexpr std::string_view kImageName = "disc.iso";
+constexpr std::size_t kImageKey = static_cast<std::size_t>(-1);
+
 // The next tab-separated field of `line` from `at`, `at` moved past it.
 std::string_view field(std::string_view line, std::size_t& at, bool last) {
     if (at > line.size()) {
@@ -131,6 +135,7 @@ SectorMap SectorMap::load(const std::filesystem::path& folder) {
     }
 
     map.m_sectors = static_cast<u32>(next);
+    map.m_image = folder / kImageName;
     return map;
 }
 
@@ -143,6 +148,30 @@ std::size_t SectorMap::run_at(u32 sector) const {
     return static_cast<std::size_t>(it - m_runs.begin()) - 1;
 }
 
+// The open file for `key` (a run, or kImageKey), opened now if it is not; null if it cannot be.
+// The lock is held.
+std::ifstream* SectorMap::open_file(std::size_t key, const std::filesystem::path& path) const {
+    auto found =
+        std::find_if(m_open.begin(), m_open.end(), [&](const Open& o) { return o.run == key; });
+
+    if (found != m_open.end()) {
+        return found->file.get();
+    }
+
+    auto file = std::make_unique<std::ifstream>(path, std::ios::binary);
+
+    if (!*file) {
+        return nullptr;
+    }
+
+    if (m_open.size() == kOpenFiles) {
+        m_open.erase(m_open.begin());
+    }
+
+    m_open.push_back({key, std::move(file)});
+    return m_open.back().file.get();
+}
+
 void SectorMap::read_run(std::size_t run, u64 at, std::span<u8> dst) const {
     const SectorRun& r = m_runs[run];
     // The bytes of the file, then zeros: a file of the file system ends before its last sector.
@@ -150,34 +179,28 @@ void SectorMap::read_run(std::size_t run, u64 at, std::span<u8> dst) const {
 
     if (from_file > 0) {
         std::lock_guard lock(*m_lock);
-        auto found =
-            std::find_if(m_open.begin(), m_open.end(), [&](const Open& o) { return o.run == run; });
+        std::filesystem::path path = r.file;
+        u64 pos = at;
+        std::ifstream* file = open_file(run, path);
 
-        if (found == m_open.end()) {
-            if (m_open.size() == kOpenFiles) {
-                m_open.erase(m_open.begin());
-            }
-
-            auto file = std::make_unique<std::ifstream>(r.file, std::ios::binary);
-
-            if (!*file) {
-                throw IoError(std::format("cannot open {}", r.file.string()));
-            }
-
-            m_open.push_back({run, std::move(file)});
-            found = m_open.end() - 1;
+        // A run's file that is gone: the same sectors of the image beside the map.
+        if (file == nullptr && r.file != m_image) {
+            path = m_image;
+            pos = static_cast<u64>(r.first) * kSectorSize + at;
+            file = open_file(kImageKey, path);
         }
 
-        std::ifstream& file = *found->file;
-        file.clear();
-        file.seekg(static_cast<std::streamoff>(at));
-        file.read(reinterpret_cast<char*>(dst.data()), static_cast<std::streamsize>(from_file));
+        if (file == nullptr) {
+            throw IoError(std::format("cannot open {}", r.file.string()));
+        }
 
-        if (!file || static_cast<u64>(file.gcount()) != from_file) {
+        file->clear();
+        file->seekg(static_cast<std::streamoff>(pos));
+        file->read(reinterpret_cast<char*>(dst.data()), static_cast<std::streamsize>(from_file));
+
+        if (!*file || static_cast<u64>(file->gcount()) != from_file) {
             throw IoError(
-                std::format(
-                    "cannot read {:#x} bytes at {:#x} of {}", from_file, at, r.file.string()
-                )
+                std::format("cannot read {:#x} bytes at {:#x} of {}", from_file, pos, path.string())
             );
         }
     }

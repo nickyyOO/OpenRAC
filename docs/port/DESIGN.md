@@ -55,7 +55,7 @@ plan, open to change), **open** (needs a decision).
 ## 2. The shape of the port (proposed)
 
 ```
-the player's disc ──► extractor ──► iso_data/   (the disc's files, checked)
+the player's disc ──► extractor ──► iso_data/   (the image, checked, and its sector map)
                           │
                           └──────► assets       (levels, textures, models, sound,
                                                  in the port's own formats)

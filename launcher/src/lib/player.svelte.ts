@@ -244,8 +244,8 @@ export function playerState(game: GameView, v: VersionView): PlayerState {
   /** Android: the game's code still in assembly, translated from the disc and compiled on the
    *  device (tools/asm_part.py), as a desktop's Build the game does with the whole game. */
   const part = action(v, "port-part");
-  /** The disc's files the game reads (tools/extractor.py writes them and their sector map): a
-   *  set-up made before the game read them has only the image. */
+  /** The sector map the game reads the disc by (tools/extractor.py writes it): a set-up made
+   *  before the game read through it has only the image. */
   const files = action(v, "disc-files");
   const setUp = game.install?.extracted ?? null;
   const other =
@@ -424,11 +424,11 @@ export function playerState(game: GameView, v: VersionView): PlayerState {
     return {
       ...base,
       kind: "levels",
-      label: "Unpack and play",
+      label: "Get ready and play",
       icon: "disc",
-      hint: "Writes your disc's data out as the files the game reads, then gets the rest ready and starts it. A few minutes and about as much space as the disc, once.",
+      hint: "Checks your disc and writes the map the game reads it by, then gets the rest ready and starts it. A minute or two, once, and no extra space.",
       primary: true,
-      status: "Needs the disc's files",
+      status: "Needs its disc map",
       tone: "warn",
     };
   }
@@ -567,7 +567,7 @@ async function addVisibility(v: VersionView): Promise<void> {
  */
 export async function prepare(v: VersionView): Promise<boolean> {
   const scope = { kind: "version" as const, key: v.key };
-  // The disc's files first: the game reads them, never the image (a set-up made before has none).
+  // The disc's sector map first: the game reads the disc by it (a set-up made before has none).
   const files = action(v, "disc-files");
 
   if (files?.runnable && !files.done) {

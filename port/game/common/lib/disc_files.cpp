@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 the OpenRAC contributors
 //
-// The disc for the game's libraries (game_host.h: openrac_disc_read and the rest): the files the
-// extractor wrote in openrac_game_disc_files, read through its sector map
-// (assets/disc/sector_map.h). The CD library (cdvd.c), the sound engine's streams and banks, the
-// movies and Up Your Arsenal's programs all read here; none opens the disc image.
+// The disc for the game's libraries (game_host.h: openrac_disc_read and the rest): the set-up in
+// openrac_game_disc_files, read through its sector map (assets/disc/sector_map.h). The CD library
+// (cdvd.c), the sound engine's streams and banks, the movies and Up Your Arsenal's programs all
+// read here.
 
 #include <cstdint>
 #include <exception>

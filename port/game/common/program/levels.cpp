@@ -45,7 +45,7 @@ bool rac2_level_program(int level, std::vector<std::uint8_t>* bytes) {
     constexpr std::uint64_t kSector = 2048;
     static std::optional<assets::disc::IsoImage> iso;
     static bool tried = false;
-    // The disc's files, read through their sector map (assets/disc/sector_map.h).
+    // The disc, read through its sector map (assets/disc/sector_map.h).
     const fs::path image = g_options.data / "iso_data" / openrac_game.game;
 
     try {
@@ -106,7 +106,7 @@ bool rac3_level_program(int level, std::vector<std::uint8_t>* bytes) {
     static std::optional<assets::disc::IsoImage> iso;
     static std::vector<std::uint8_t> toc;
     static bool tried = false;
-    // The disc's files, read through their sector map (assets/disc/sector_map.h).
+    // The disc, read through its sector map (assets/disc/sector_map.h).
     const fs::path image = g_options.data / "iso_data" / openrac_game.game;
 
     try {
@@ -222,7 +222,7 @@ bool level_program_from_disc(int level, std::vector<std::uint8_t>* bytes) {
 
     if (!tried) {
         tried = true;
-        // The disc's files, read through their sector map (assets/disc/sector_map.h).
+        // The disc, read through its sector map (assets/disc/sector_map.h).
         const fs::path image = g_options.data / "iso_data" / openrac_game.game;
 
         if (std::string(openrac_game.game) == "rac1") {
@@ -248,7 +248,7 @@ bool level_program_from_disc(int level, std::vector<std::uint8_t>* bytes) {
             return true;
         }
     } catch (const std::exception& e) {
-        log::warn("level {}'s program cannot be read from the disc's files: {}", level, e.what());
+        log::warn("level {}'s program cannot be read from the disc: {}", level, e.what());
     }
 #else
     (void)level;
@@ -270,7 +270,7 @@ void load_level_program(int level) {
     if (!runtime::read_file(path, &bytes) && !level_program_from_disc(level, &bytes)) {
         crash::level_breadcrumb("level program missing", level);
         log::error(
-            "level {}'s program is in neither {} nor the disc's files: the functions levels share "
+            "level {}'s program is in neither {} nor the disc: the functions levels share "
             "are not "
             "relocated, and the game will misbehave (the hero's heading ignores the camera)",
             level,

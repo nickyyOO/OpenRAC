@@ -171,7 +171,7 @@ struct Place {
 };
 
 // The disc, and its size: nothing is read past its end. A set-up's folder is read through its
-// sector map (the disc's files, assets/disc/sector_map.h), an image file as it is.
+// sector map (assets/disc/sector_map.h), an image file as it is.
 struct Disc {
     std::unique_ptr<assets::disc::ImageSource> source;
     std::uint64_t size = 0;

@@ -19,7 +19,7 @@
  *
  * The packed games are unpacked when the disc is set up, not here: the extractor writes each
  * loader's records (its WAD-compressed stream at file offset 0x7080, unpacked) to
- * programs/<file>.records beside the disc's files (tools/openrac_common/disc_files.py). The
+ * programs/<file>.records in the set-up (tools/openrac_common/disc_files.py). The
  * port reads those, never the disc image or the loader's packed stream. */
 #include "exec.h"
 
@@ -71,7 +71,7 @@ uint32_t rac3_exec_load_program(const char* file) {
     uint8_t* image =
         length <= 0x02000000u ? (uint8_t*)malloc(length > 0 ? (size_t)length : 1) : NULL;
     if (image == NULL || !openrac_disc_read_file(path, image, length)) {
-        fprintf(stderr, "rac3: %s is not among the disc's files: set the game up again\n", path);
+        fprintf(stderr, "rac3: %s is not in the set-up: set the game up again\n", path);
         free(image);
         return 0;
     }

@@ -3,8 +3,8 @@
  *
  * The disc library (libcdvd). The game reads its data by absolute sector
  * from the disc (docs/port/RAC1_PAL_SURVEY.md, section 6), so the port reads
- * the same sectors from the files the extractor wrote, through its sector map
- * (iso_data/<game>/sectors.tsv, lib/disc_files.cpp): no disc image is opened.
+ * the same sectors through the set-up's sector map (iso_data/<game>/sectors.tsv,
+ * lib/disc_files.cpp).
  * A read completes before the call returns, so the game's polling (sceCdSync)
  * finds it done. */
 #define _FILE_OFFSET_BITS 64

@@ -630,7 +630,7 @@ function view(action: RawAction, st: VersionStatus | null, version?: string): Ac
     blockers,
     // The mock tracks the bundled program and the files implied by ?built. Exports and editor
     // projects still need their own steps.
-    // A set-up has the disc's files: the extractor writes them as it sets the disc up.
+    // A set-up has its sector map: the extractor writes it as it sets the disc up.
     done:
       bundledPlay ||
       (built && BUILT_DONE.has(action.id)) ||

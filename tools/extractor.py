@@ -6,15 +6,12 @@ the way OpenGOAL's `extractor` does for Jak and Daxter. Standard library only.
   python3 tools/extractor.py IMAGE --game rac1 [--proj-path DIR] [steps]
 
 Steps (all of them when none is named):
-  --extract    copy the disc's files into PROJ/iso_data/GAME/: the file system's
-               files, every other sector as lumps cut where the game's table of
-               contents points (lumps/), and sectors.tsv, the map from each sector
-               to its file, which is all the port reads (openrac_common/disc_files.py).
-               The image is kept there too, linked (copied across file systems), for
-               the level tools, which still read it
-  --boot-only  with --extract: write out only SYSTEM.CNF and the boot executable,
-               and no lumps or map; every file is still read and checked. Enough for
-               the level tools, not for the port, which reads the files only
+  --extract    set the disc up in PROJ/iso_data/GAME/: the image, linked (copied
+               across file systems), SYSTEM.CNF, the boot executable and sectors.tsv,
+               the map the port reads every sector by (openrac_common/disc_files.py).
+               The map points into the image: no second copy of the disc
+  --boot-only  with --extract: no sector map; every file is still read and checked.
+               Enough for the level tools, not for the port, which reads through the map
   --link-image with --extract: when the image cannot be hard-linked, keep a
                symbolic link to it rather than a second copy. For an image the
                launcher keeps itself (Android's, which lets no app hard-link)
@@ -155,7 +152,8 @@ def print_new_build(serial: str | None, boot_sha1: str | None, hashes: dict[str,
 def extract(image: Path, game: str, proj: Path, minimum: int = MIN_IMAGE_SIZE, boot_only: bool = False,
             link_image: bool = False) -> dict:
     """Extract and validate IMAGE into PROJ/iso_data/GAME; returns the build info written.
-    BOOT_ONLY: of the disc's files only SYSTEM.CNF and the boot executable are written.
+    Of the disc's files only SYSTEM.CNF, the boot executable and Up Your Arsenal's programs are
+    written; every file is read and checked. BOOT_ONLY: no sector map.
     LINK_IMAGE: a symbolic link to IMAGE where no hard link can be made, not a copy."""
     check_image_file(image, minimum)
     entries = files_of(image)
@@ -170,7 +168,7 @@ def extract(image: Path, game: str, proj: Path, minimum: int = MIN_IMAGE_SIZE, b
     hashes: dict[str, str] = {}
     with open(image, "rb") as f:
         for path, lba, size in entries:
-            keep = not boot_only or path in (serial, "SYSTEM.CNF")
+            keep = path in (serial, "SYSTEM.CNF", *disc_files.RAC3_PROGRAMS)
             dest = temp / path
             if keep:
                 dest.parent.mkdir(parents=True, exist_ok=True)
@@ -199,27 +197,23 @@ def extract(image: Path, game: str, proj: Path, minimum: int = MIN_IMAGE_SIZE, b
         raise
     print(f"validated: {g['title']} ({version['region']}, {serial}), boot executable SHA-1 matches games/{game}/game.json")
 
-    # What the port reads at run time: the sectors the file system does not hold, as lumps, and
-    # the map from every sector to its file (disc_files). The map is written last.
+    # What the port reads at run time: the map, one run of every sector of the image kept beside
+    # it (disc.iso, below). Written last.
     if not boot_only:
-        written = {path for path, _, _ in entries}
-        with open(image, "rb") as f:
-            rows = disc_files.plan(entries, image.stat().st_size // SECTOR, disc_files.toc_lumps(image))
-            rows = disc_files.write_lumps(f, rows, temp, written.__contains__)
+        rows = [disc_files.image_run(image, "disc.iso")]
         try:
             disc_files.unpack_programs(game, temp, boot=serial)
         except ValueError as e:
             shutil.rmtree(temp)
             raise ExtractError(4012, str(e)) from e
-        print(f"  {disc_files.MAP_NAME}: {len(rows)} runs of sectors, each read from its file")
+        print(f"  {disc_files.MAP_NAME}: every sector read from disc.iso")
         disc_files.write_map(rows, temp)
 
-    # The level tools (extractor/extract.py port) still read the image: keep it beside the
-    # files, which are what the port reads. An image
-    # inside the set-up being replaced (its own disc.iso, a copy, not a link)
-    # moves into the new one at the end: a link to it would go with the old set-up.
+    # The image the map and the level tools read, kept as disc.iso. An image inside the set-up
+    # being replaced (its own disc.iso, a copy, not a link) moves into the new one at the end: a
+    # link to it would go with the old set-up.
     inside = final.resolve() in image.resolve().parents
-    # The set-up's own disc.iso that is a link (Android, Unpack the disc's files): the new one
+    # The set-up's own disc.iso that is a link (Android, Map the disc): the new one
     # links to the same image, never a copy of it, and keeps the image's name.
     own_link = image.is_symlink() and image.parent.resolve() == final.resolve()
     if inside:
@@ -267,8 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     every = not (args.extract or args.validate or args.decompile or args.compile)
     try:
         if every or args.extract or args.validate:
-            extract(args.image.resolve(), args.game, args.proj_path.resolve(), boot_only=args.boot_only,
-                    link_image=args.link_image)
+            # Absolute, not resolved: a set-up's own disc.iso that is a link must stay one (extract).
+            extract(Path(os.path.abspath(args.image)), args.game, args.proj_path.resolve(),
+                    boot_only=args.boot_only, link_image=args.link_image)
         if every or args.decompile:
             not_yet("decompile")
         if every or args.compile:

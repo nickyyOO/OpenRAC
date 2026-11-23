@@ -41,10 +41,10 @@ cp /path/to/your/discs/*.iso baserom/
 cd launcher && corepack enable && yarn install && yarn tauri dev   # the launcher, from source
 ```
 
-The launcher sets each game up from your disc (it unpacks the disc's files, exports the levels and
-builds the game) the first time you press Play. To build the port by hand instead:
+The launcher sets each game up from your disc (it checks the disc, exports the levels and builds
+the game) the first time you press Play. To build the port by hand instead:
 `cd port && cmake --preset release && cmake --build --preset release && ctest --preset release`.
-A game's data folder needs the disc unpacked first: `python3 tools/extractor.py -g <game> -e
+A game's data folder needs the disc set up first: `python3 tools/extractor.py -g <game> -e
 --proj-path <data folder> <disc.iso>`. Debugging switches (`OPENRAC_*` variables, test runs, input
 scripts, screenshots) are in [port/DEBUGGING.md](port/DEBUGGING.md).
 

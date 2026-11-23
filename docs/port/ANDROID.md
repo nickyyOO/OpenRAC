@@ -165,9 +165,8 @@ so if it takes more than a second.
 **Kept light for a phone:**
 
 - the image is copied by the kernel (`copy_file_range` or `sendfile`);
-- the extractor writes the disc's files once (the game reads them through
-  their sector map, `sectors.tsv`, never the image): about as much space as
-  the disc again, on top of the linked image the level tools read;
+- the game reads the linked image through a sector map (`sectors.tsv`): no
+  second copy of the disc;
 - files that levels have alike (a moby class, a texture) are written once and
   linked (`extractor/extract.py`, `share_identical_files`);
 - Android's Python has no process pools (no `sem_open`), so `extractor/extract.py`

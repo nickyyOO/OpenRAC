@@ -5,7 +5,7 @@
 //!
 //! ```text
 //! <install dir>/active/<game>/data/
-//!     iso_data/<game>/        the disc's files, sectors.tsv, the image,     (extract)
+//!     iso_data/<game>/        the image, sectors.tsv, the boot executable,  (extract)
 //!                             buildinfo.json
 //!     decompiler_out/<game>/  the assets in the port's formats              (decompile)
 //!     out/<game>/             the built port                                (compile, not yet)
@@ -103,7 +103,7 @@ pub fn state(install: &Path, game: &str) -> InstallState {
     let iso_data = dir.join("iso_data").join(game);
     // A set-up whose image is gone is none: on Android the image is a link to the copy in the
     // Disc images folder, which the player can delete in the Files app. One made before the
-    // extractor wrote the disc's files (no SECTOR_MAP) is still one: Play waits for its files,
+    // extractor wrote the sector map (no SECTOR_MAP) is still one: Play waits for the map,
     // which the step "disc-files" (actions.json) writes from the image it kept.
     let extracted = build_info(&iso_data).filter(|_| iso_data.join("disc.iso").is_file());
     let filled = |sub: &str| std::fs::read_dir(dir.join(sub).join(game)).is_ok_and(|mut d| d.next().is_some());
@@ -161,14 +161,21 @@ pub struct Tidied {
     pub lines: Vec<String>,
 }
 
-/// What a set-up made with tools/extractor.py --boot-only keeps of the disc beside the image, with
-/// the boot executable, named by its serial. A set-up with a sector map keeps all its files: the
-/// game reads them.
-const KEPT_BESIDE_IMAGE: [&str; 3] = ["disc.iso", "buildinfo.json", "SYSTEM.CNF"];
+/// What a set-up keeps of the disc beside the image, with the boot executable, named by its serial:
+/// what tools/extractor.py writes (Up Your Arsenal's programs and their unpacked records too).
+const KEPT_BESIDE_IMAGE: [&str; 6] =
+    ["disc.iso", "buildinfo.json", "SYSTEM.CNF", SECTOR_MAP, "I5BOOTN.ELF", "programs"];
+
+/// The image a sector map reads every sector from (tools/openrac_common/disc_files.py image_run).
+const IMAGE: &str = "disc.iso";
+/// The sector map's first line (port/assets/disc/sector_map.h).
+const SECTOR_MAP_HEADER: &str = "# openrac sector map 1: first sector, sectors, bytes, file";
+const SECTOR: u64 = 2048;
 
 /// Frees what older set-ups hold and nothing reads, in every set-up under `install` (the one in
 /// place and those kept aside, `iso_data/<game>@<version>`): the disc's files beside the image,
-/// which the extractor wrote before it kept only what the port reads (Going Commando's: 3.8 GB).
+/// which older extractors wrote (Going Commando's: 3.8 GB). A sector map that names those files
+/// is first rewritten to read the image, once a sample of them matches it.
 /// With `discs` (Android's Disc images folder), an image that is a second copy of the one there is
 /// replaced by a link to it, as the extractor now makes (`--link-image`). Errors leave a file as it
 /// was: the set-up still works, only larger.
@@ -193,8 +200,8 @@ pub fn tidy(install: &Path, discs: Option<&Path>) -> Tidied {
 }
 
 fn drop_unread_files(dir: &Path, info: &BuildInfo, done: &mut Tidied) {
-    // The disc's files and their map: every one is read.
-    if dir.join(SECTOR_MAP).is_file() {
+    // A map that still names the disc's files: they stay until it reads the image.
+    if dir.join(SECTOR_MAP).is_file() && !map_reads_image(dir, done) {
         return;
     }
     let Ok(entries) = std::fs::read_dir(dir) else { return };
@@ -220,6 +227,92 @@ fn drop_unread_files(dir: &Path, info: &BuildInfo, done: &mut Tidied) {
         done.bytes += bytes;
         done.lines.push(format!("{}: {count} disc files nothing reads removed, {} MB", dir.display(), bytes >> 20));
     }
+}
+
+/// One row of a sector map: `sectors` sectors from `first`, the first `bytes` of `file`.
+struct Run {
+    first: u64,
+    sectors: u64,
+    bytes: u64,
+    file: String,
+}
+
+fn read_sector_map(dir: &Path) -> Option<Vec<Run>> {
+    let text = std::fs::read_to_string(dir.join(SECTOR_MAP)).ok()?;
+    let mut lines = text.lines();
+    if lines.next()?.trim_end() != SECTOR_MAP_HEADER {
+        return None;
+    }
+    let mut runs = Vec::new();
+    for line in lines.map(str::trim_end).filter(|l| !l.is_empty() && !l.starts_with('#')) {
+        let mut fields = line.splitn(4, '\t');
+        let mut number = || fields.next()?.parse::<u64>().ok();
+        let (first, sectors, bytes) = (number()?, number()?, number()?);
+        let file = fields.next()?.to_string();
+        runs.push(Run { first, sectors, bytes, file });
+    }
+    Some(runs)
+}
+
+/// Whether `dir`'s sector map reads every sector from its image, as the extractor writes it now.
+/// One that names the disc's files is rewritten to, when the image is there, covers the same
+/// sectors and holds the same bytes as the files at 16 runs spread over the map (up to 1 MB each).
+/// The files are left to the caller: a game that read the old map falls back to the image for a
+/// file that is gone (sector_map.h).
+fn map_reads_image(dir: &Path, done: &mut Tidied) -> bool {
+    let Some(runs) = read_sector_map(dir).filter(|r| !r.is_empty()) else { return false };
+    if let [only] = runs.as_slice() {
+        if only.file == IMAGE && only.first == 0 {
+            return true;
+        }
+    }
+    let image = dir.join(IMAGE);
+    let Ok(size) = std::fs::metadata(&image).map(|m| m.len()) else { return false };
+    let sectors = size / SECTOR;
+    let mut next = 0;
+    for run in &runs {
+        if run.first != next || run.file.contains("..") || run.bytes > run.sectors * SECTOR {
+            return false;
+        }
+        next = run.first + run.sectors;
+    }
+    if next != sectors || !same_as_image(dir, &image, &runs) {
+        return false;
+    }
+    let map = format!("{SECTOR_MAP_HEADER}\n0\t{sectors}\t{}\t{IMAGE}\n", sectors * SECTOR);
+    let fresh = dir.join(format!("{SECTOR_MAP}.new"));
+    if std::fs::write(&fresh, map).is_err() || std::fs::rename(&fresh, dir.join(SECTOR_MAP)).is_err() {
+        let _ = std::fs::remove_file(&fresh);
+        return false;
+    }
+    done.lines.push(format!("{}: sector map reads {IMAGE} in place of {} files", dir.display(), runs.len()));
+    true
+}
+
+/// The first bytes (up to 1 MB) of 16 runs' files, spread over the map, are the image's there.
+fn same_as_image(dir: &Path, image: &Path, runs: &[Run]) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    const SAMPLE: u64 = 1 << 20;
+    const PLACES: usize = 16;
+    let Ok(mut disc) = std::fs::File::open(image) else { return false };
+    let filled: Vec<&Run> = runs.iter().filter(|r| r.bytes > 0).collect();
+    let step = filled.len().div_ceil(PLACES).max(1);
+    let picked = filled.iter().step_by(step).chain(filled.last());
+    let (mut a, mut b) = (Vec::new(), Vec::new());
+    for run in picked {
+        let size = run.bytes.min(SAMPLE) as usize;
+        a.resize(size, 0);
+        b.resize(size, 0);
+        let read = (|| -> std::io::Result<()> {
+            std::fs::File::open(dir.join(&run.file))?.read_exact(&mut a)?;
+            disc.seek(SeekFrom::Start(run.first * SECTOR))?;
+            disc.read_exact(&mut b)
+        })();
+        if read.is_err() || a != b {
+            return false;
+        }
+    }
+    true
 }
 
 /// `dir/disc.iso` as a link to `discs/<the image's name>` when the two are the same image (the same
@@ -454,6 +547,62 @@ mod tests {
         assert!(set_up.join("IOPRP243.IMG").is_file());
     }
 
+    /// A set-up whose sector map names the disc's files, as the extractor wrote them for a while:
+    /// the image (sectors of 0..=5), SYSTEM.CNF at sector 2 and two lumps.
+    fn set_up_with_files(install: &Path) -> (PathBuf, Vec<u8>) {
+        extracted(install, "rac1", "SCES_509.16");
+        let set_up = data_dir(install, "rac1").join("iso_data").join("rac1");
+        let image: Vec<u8> = (0..6 * 2048).map(|i: u32| (i * 7 % 251) as u8).collect();
+        std::fs::write(set_up.join("disc.iso"), &image).unwrap();
+        std::fs::create_dir_all(set_up.join("lumps/sectors")).unwrap();
+        std::fs::write(set_up.join("lumps/sectors/0000000.bin"), &image[..2 * 2048]).unwrap();
+        std::fs::write(set_up.join("SYSTEM.CNF"), &image[2 * 2048..2 * 2048 + 40]).unwrap();
+        std::fs::write(set_up.join("lumps/sectors/0000003.bin"), &image[3 * 2048..]).unwrap();
+        std::fs::write(set_up.join("SCES_509.16"), b"boot").unwrap();
+        std::fs::write(
+            set_up.join(SECTOR_MAP),
+            format!(
+                "{SECTOR_MAP_HEADER}\n0\t2\t4096\tlumps/sectors/0000000.bin\n2\t1\t40\tSYSTEM.CNF\n\
+                 3\t3\t6144\tlumps/sectors/0000003.bin\n"
+            ),
+        )
+        .unwrap();
+        (set_up, image)
+    }
+
+    #[test]
+    fn tidy_points_a_map_of_files_at_the_image_and_frees_the_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let (set_up, _) = set_up_with_files(dir.path());
+        let done = tidy(dir.path(), None);
+        assert_eq!(
+            std::fs::read_to_string(set_up.join(SECTOR_MAP)).unwrap(),
+            format!("{SECTOR_MAP_HEADER}\n0\t6\t12288\tdisc.iso\n")
+        );
+        assert_eq!(done.bytes, 2 * 2048 + 3 * 2048);
+        let mut left: Vec<String> =
+            std::fs::read_dir(&set_up).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into()).collect();
+        left.sort();
+        assert_eq!(left, ["SCES_509.16", "SYSTEM.CNF", "buildinfo.json", "disc.iso", "sectors.tsv"]);
+        assert!(state(dir.path(), "rac1").extracted.is_some());
+        assert_eq!(tidy(dir.path(), None), Tidied::default(), "nothing more the second time");
+    }
+
+    #[test]
+    fn tidy_keeps_a_map_of_files_that_are_not_the_images() {
+        let dir = tempfile::tempdir().unwrap();
+        let (set_up, mut image) = set_up_with_files(dir.path());
+        let map = std::fs::read_to_string(set_up.join(SECTOR_MAP)).unwrap();
+        // Another disc's image, or a short one: the files stay, the map too.
+        image[3 * 2048] ^= 1;
+        std::fs::write(set_up.join("disc.iso"), &image).unwrap();
+        assert_eq!(tidy(dir.path(), None), Tidied::default());
+        std::fs::write(set_up.join("disc.iso"), &image[..5 * 2048]).unwrap();
+        assert_eq!(tidy(dir.path(), None), Tidied::default());
+        assert_eq!(std::fs::read_to_string(set_up.join(SECTOR_MAP)).unwrap(), map);
+        assert!(set_up.join("lumps/sectors/0000003.bin").is_file());
+    }
+
     #[cfg(unix)]
     #[test]
     fn tidy_links_a_second_copy_of_the_kept_image() {
@@ -549,7 +698,7 @@ mod tests {
         // Joined as the system joins paths: with backslashes on Windows.
         let data = Path::new("/data").join("active").join("rac1").join("data");
         assert_eq!(plan.args[7], data.display().to_string());
-        // The disc's files and their sector map, which the game reads: not --boot-only.
+        // The sector map, which the game reads the disc by: not --boot-only.
         assert_eq!(plan.args.len(), if cfg!(target_os = "android") { 9 } else { 8 });
         assert!(!plan.args.iter().any(|a| a == "--boot-only"));
         assert_eq!(plan.cwd, PathBuf::from("/openrac"));

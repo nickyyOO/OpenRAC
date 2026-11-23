@@ -126,13 +126,13 @@ describe("rebuild", () => {
   });
 });
 
-describe("a set-up made before the game read the disc's files", () => {
+describe("a set-up made before the game read through the sector map", () => {
   beforeEach(() => {
     jobs.list.length = 0;
   });
 
-  it("unpacks them first, from the image it kept, then gets the rest ready", () => {
-    const blockers = ["needs the disc's files (Unpack the disc's files)"];
+  it("writes the map first, from the image it kept, then gets the rest ready", () => {
+    const blockers = ["needs the disc's sector map (Map the disc)"];
     const v = versionWith([
       step("disc-files"),
       step("play", { done: true, runnable: false, blockers }),
@@ -142,11 +142,11 @@ describe("a set-up made before the game read the disc's files", () => {
     const state = playerState(gameOf(v), v);
 
     expect(state.kind).toBe("levels");
-    expect(state.label).toBe("Unpack and play");
+    expect(state.label).toBe("Get ready and play");
     expect(state.disabled).toBe(false);
   });
 
-  it("is ready to play once they are there", () => {
+  it("is ready to play once the map is there", () => {
     const v = versionWith([step("disc-files", { done: true }), step("play", { done: true })]);
 
     expect(playerState(gameOf(v), v).kind).toBe("play");

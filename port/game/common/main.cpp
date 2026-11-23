@@ -732,14 +732,13 @@ int main(int argc, char** argv) {
     // The part of the game built from the disc, before any of its code runs, and after the log is
     // open so that one that does not load says why there.
     load_asm_part(g_options);
-    // The disc's files and their sector map (tools/openrac_common/disc_files.py): the game reads
-    // its sectors from them, never from the image. A set-up made before the map was written
-    // (or with --boot-only) has to be made again.
+    // The sector map (tools/openrac_common/disc_files.py): the game reads every sector through
+    // it. A set-up made before the map was written (or with --boot-only) has to be made again.
     const fs::path iso = g_options.data / "iso_data" / openrac_game.game;
     const fs::path exe = iso / openrac_game.serial;
     if (!fs::exists(exe) || !assets::disc::SectorMap::present(iso)) {
         log::fatalf(
-            "{} has no {} and sectors.tsv (the disc's files): set the game up from your disc "
+            "{} has no {} and sectors.tsv (the disc's map): set the game up from your disc "
             "again (python3 tools/extractor.py <image> --game {} --extract --proj-path {})",
             iso.string(),
             openrac_game.serial,

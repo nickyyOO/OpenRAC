@@ -53,44 +53,14 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(info["files"], 3)
         self.assertFalse((self.proj / "iso_data" / "_temp").exists())
 
-    def test_the_sector_map_gives_every_sector_of_the_image_from_the_files(self):
+    def test_the_sector_map_reads_the_image_and_writes_no_second_copy(self):
         self.run_extract()
         out = self.proj / "iso_data" / "rac9"
-        rows = disc_files.read_map(out)
-        whole = self.iso.read_bytes()
-        self.assertEqual(rows[0].first, 0)
-        self.assertEqual(sum(r.sectors for r in rows) * disc_files.SECTOR, len(whole))
-        rebuilt = bytearray()
-        for row in rows:
-            self.assertEqual(row.first * disc_files.SECTOR, len(rebuilt))
-            data = (out / row.path).read_bytes()
-            self.assertEqual(len(data), row.bytes)
-            rebuilt += data + bytes(row.sectors * disc_files.SECTOR - row.bytes)
-        self.assertEqual(bytes(rebuilt), whole)
-        # The file system's files are rows of their own; the rest are lumps.
-        self.assertIn("SCES_999.99", [r.path for r in rows])
-        self.assertTrue(all(r.path.startswith("lumps/") for r in rows if r.path not in ("SYSTEM.CNF", "SCES_999.99", "IOPRP.IMG")))
-
-    def test_lumps_are_cut_where_the_table_of_contents_points(self):
-        files = [("A.BIN", 20, 100), ("B.BIN", 30, 5000)]
-        rows = disc_files.plan(files, 50, {5: "toc", 40: "levels/00/level", 45: "global/001"})
-        self.assertEqual([(r.first, r.sectors, r.path) for r in rows], [
-            (0, 5, "lumps/sectors/0000000.bin"), (5, 15, "lumps/toc.bin"), (20, 1, "A.BIN"),
-            (21, 9, "lumps/sectors/0000021.bin"), (30, 3, "B.BIN"), (33, 7, "lumps/sectors/0000033.bin"),
-            (40, 5, "lumps/levels/00/level.bin"), (45, 5, "lumps/global/001.bin")])
-        self.assertEqual(rows[2].bytes, 100)
-
-    def test_a_file_whose_padding_is_not_zeros_leaves_its_last_sector_to_a_lump(self):
-        data = bytearray(self.iso.read_bytes())
-        lba = next(l for p, l, _ in extractor.files_of(self.iso) if p == "IOPRP.IMG")
-        data[lba * disc_files.SECTOR + 10] = 0x55
-        self.iso.write_bytes(bytes(data))
-        self.run_extract()
-        out = self.proj / "iso_data" / "rac9"
-        rows = {r.first: r for r in disc_files.read_map(out)}
-        self.assertEqual(rows[lba].path, f"lumps/sectors/{lba:07}.bin")
-        self.assertEqual((out / rows[lba].path).read_bytes()[10], 0x55)
-        self.assertEqual((out / "IOPRP.IMG").read_bytes(), b"iop")
+        sectors = len(self.iso.read_bytes()) // disc_files.SECTOR
+        self.assertEqual(disc_files.read_map(out), [disc_files.Piece(0, sectors, sectors * disc_files.SECTOR, "disc.iso")])
+        self.assertFalse((out / "IOPRP.IMG").exists(), "no second copy of the disc's files")
+        self.assertEqual(sorted(p.name for p in out.iterdir()),
+                         ["SCES_999.99", "SYSTEM.CNF", "buildinfo.json", "disc.iso", "sectors.tsv"])
 
     def test_boot_only_writes_the_boot_executable_alone_and_checks_every_file(self):
         with mock.patch.object(extractor, "builds", fake_builds(hashlib.sha1(BOOT).hexdigest())):
@@ -133,8 +103,8 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(info["image"], self.iso.name, "the name of the image it was first set up from")
         self.assertFalse((self.proj / "iso_data" / "_temp").exists())
 
-    def test_unpacking_a_linked_set_up_keeps_the_link(self):
-        # Android: the set-up's disc.iso links to the Disc images copy. Unpack the disc's files
+    def test_mapping_a_linked_set_up_keeps_the_link(self):
+        # Android: the set-up's disc.iso links to the Disc images copy. Map the disc
         # runs on it without --link-image: the new set-up links to that copy, never copies it.
         with mock.patch.object(extractor, "builds", fake_builds(hashlib.sha1(BOOT).hexdigest())), \
                 mock.patch("os.link", side_effect=PermissionError("no hard links")):
@@ -145,6 +115,16 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(own.resolve(), self.iso.resolve())
         self.assertTrue((self.proj / "iso_data" / "rac9" / disc_files.MAP_NAME).is_file())
         self.assertEqual(info["image"], self.iso.name, "the name of the image it was first set up from")
+
+    def test_the_command_line_passes_a_linked_image_unresolved(self):
+        # The launcher's Map the disc passes the set-up's own disc.iso, a link on
+        # Android: extract must see the link (to keep one), not the file it points to.
+        link = self.proj / "disc.iso"
+        self.proj.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(self.iso)
+        with mock.patch.object(extractor, "extract") as extract:
+            self.assertEqual(extractor.main([str(link), "--game", "rac1", "--extract"]), 0)
+        self.assertEqual(extract.call_args.args[0], link)
 
     def test_without_link_image_a_failed_hard_link_copies(self):
         with mock.patch.object(extractor, "builds", fake_builds(hashlib.sha1(BOOT).hexdigest())), \

@@ -31,7 +31,7 @@ def prepare(data_folder, progress, engine):
             if entry["name"] == "SYSTEM.CNF":
                 (iso.parent / "SYSTEM.CNF").write_bytes(disc.read(entry["lba"] * SECTOR, entry["bytes"]))
         survey = disc.survey()
-    # The disc's files and their sector map: the game reads these, never the image.
+    # The sector map the game reads the image by.
     progress("Écriture des fichiers du disque…")
     disc_files.write_disc(iso, iso.parent, engine["game"], engine["bootFile"], log=lambda _: None)
     levels = data / engine["levels"]
