@@ -81,6 +81,12 @@ pub trait Host: Send + Sync + 'static {
     /// Puts text on the clipboard.
     fn copy(&self, text: &str);
 
+    /// What fetches mods and the mod hub from the web: curl, through the launcher's cache of
+    /// GitHub's answers (Android fetches through its own side).
+    fn fetch(&self) -> Box<dyn openrac_launcher_core::remote::Fetch> {
+        Box::new(openrac_launcher_core::remote::Cached::shared(openrac_launcher_core::remote::Curl))
+    }
+
     /// The folder a file made for the player (a report's .zip) is made in.
     fn hand_over_folder(&self) -> Option<PathBuf> {
         openrac_launcher_core::reports::save_folder()

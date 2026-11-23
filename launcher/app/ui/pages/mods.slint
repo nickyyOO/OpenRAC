@@ -1,0 +1,536 @@
+// The Mods tab: the game list beside the picked game's mods. My mods holds where mods come from,
+// adding one (a link, a file, a folder), the notice while Play starts without mods, and the list:
+// a row per mod in load order with its switch, its name and a line, one badge and the way into
+// its own page. With many mods, a bar finds, shows one kind and sorts them by name.
+
+import { Theme } from "../theme.slint";
+import { SideEntry } from "../state.slint";
+import { SideList } from "../shell/side-list.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, Field, IconButton, Rule, Spinner, Status, Switch, Tone } from "../widgets/controls.slint";
+import { Menu, MenuItem } from "../widgets/menu.slint";
+import { Scroll } from "../widgets/scroll.slint";
+import { Games } from "games.slint";
+
+export struct ModRow {
+    id: string,
+    name: string,
+    line: string,
+    // "gameplay", "looks", "tools".
+    group: string,
+    on: bool,
+    // The switch can be pressed (a tool's and Keyboard and mouse's cannot).
+    switchable: bool,
+    badge: string,
+    badge-tone: Tone,
+    badge-hint: string,
+    // "Settings" or "Details".
+    open-text: string,
+    // A newer version to update to, or "".
+    update: string,
+    menu: [MenuItem],
+}
+
+// One mod a link's repository holds, before it is installed.
+export struct LinkMod {
+    id: string,
+    name: string,
+    // Its version and author.
+    meta: string,
+    line: string,
+    kind: string,
+    kind-tone: Tone,
+    // It can be installed here; if not, why.
+    fits: bool,
+    why: string,
+    // "Install", "Reinstall" or "Update to 1.2".
+    button: string,
+}
+
+export struct ModFilter {
+    id: string,
+    label: string,
+    count: int,
+}
+
+export global Mods {
+    in property <[SideEntry]> entries;
+    in property <string> title;
+    // "mods" (its gameplay mods), "early" (early access), "none" (no mods yet), "setup" (set it up).
+    in property <string> mode;
+    in property <string> mode-title;
+    in property <string> mode-line;
+    in property <bool> read;
+    in property <[ModRow]> gameplay;
+    in property <[ModRow]> tools;
+    in property <string> empty;
+    // Play starts the game without mods.
+    in property <bool> purist;
+    in property <bool> toolbar;
+    in property <[ModFilter]> filters;
+    in property <string> filter: "all";
+    in property <string> sort: "order";
+    in property <string> query;
+    in property <int> revision;
+    // The panel's title: the kind shown alone, else Gameplay mods.
+    in property <string> heading: "Gameplay mods";
+    // Under the list: how its order works, or why it cannot be moved as shown.
+    in property <string> order-line;
+    in property <string> adding;
+    // What the last change to the list came to, and what the last add came to.
+    in property <string> said;
+    in property <bool> said-failed;
+    in property <string> add-said;
+    in property <bool> add-said-failed;
+    in property <bool> checking;
+    // What a link holds: "In owner/repo, published by owner", its mods, and whether one runs code.
+    in property <string> link-from;
+    in property <string> link-note;
+    in property <[LinkMod]> link-mods;
+    in property <bool> link-native;
+    in property <string> installing;
+    in property <string> update-all;
+
+    callback set-on(string, bool);
+    callback open-mod(string);
+    callback row-menu(string, string);
+    callback update(string);
+    callback update-all-now();
+    callback check-updates();
+    callback set-filter(string);
+    callback set-sort(string);
+    callback search(string);
+    callback add-link(string);
+    callback add-file();
+    callback add-folder();
+    callback install(string);
+    callback close-link();
+    callback turn-on-mods();
+    callback open-url(string);
+    callback pick(string);
+}
+
+component Chip inherits Rectangle {
+    in property <string> text;
+    in property <int> count: -1;
+    in property <bool> on;
+    callback clicked();
+    height: 38px;
+    min-width: row.preferred-width + 24px;
+    max-width: self.min-width;
+    horizontal-stretch: 0;
+    border-radius: Theme.radius-sm;
+    background: on ? Theme.amber.with-alpha(0.16) : area.has-hover ? Theme.control-hi : Theme.control;
+    accessible-role: button;
+    accessible-label: text;
+    accessible-checked: on;
+    accessible-action-default => { clicked(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    row := HorizontalLayout {
+        x: 12px;
+        width: self.preferred-width;
+        spacing: 6px;
+        Text { text: root.text; color: root.on ? Theme.amber : Theme.text; font-size: 13.5px; font-weight: root.on ? 700 : 500; vertical-alignment: center; }
+        if root.count >= 0: Text { text: root.count; color: root.on ? Theme.amber : Theme.dim; font-size: 13px; font-weight: 700; vertical-alignment: center; }
+    }
+}
+
+component ModLine inherits Rectangle {
+    in property <ModRow> entry;
+    height: row.preferred-height;
+    row := HorizontalLayout {
+        spacing: 14px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        VerticalLayout {
+            alignment: center;
+            Switch {
+                checked: root.entry.on;
+                enabled: root.entry.switchable;
+                label: "Use " + root.entry.name;
+                toggled(on) => { Mods.set-on(root.entry.id, on); }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 3px;
+            Text {
+                text: root.entry.name;
+                color: root.entry.on ? Theme.text : Theme.soft;
+                font-weight: 600;
+                font-size: 15px;
+                overflow: elide;
+            }
+            if root.entry.line != "": Text {
+                text: root.entry.line;
+                color: Theme.soft;
+                font-size: 13px;
+                overflow: elide;
+            }
+        }
+        Rectangle {
+            width: badge.preferred-width;
+            accessible-role: text;
+            accessible-label: root.entry.badge;
+            accessible-description: root.entry.badge-hint;
+            badge := Status { y: (parent.height - self.height) / 2; height: self.preferred-height; text: root.entry.badge; tone: root.entry.badge-tone; }
+        }
+        if root.entry.update != "": VerticalLayout {
+            alignment: center;
+            Button {
+                text: "Update";
+                icon: Icons.download;
+                compact: true;
+                on-card: true;
+                clicked => { Mods.update(root.entry.id); }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: root.entry.open-text;
+                icon: Icons.next;
+                icon-after: true;
+                kind: ButtonKind.quiet;
+                compact: true;
+                on-card: true;
+                accessible-label: "Open " + root.entry.name;
+                clicked => { Mods.open-mod(root.entry.id); }
+            }
+        }
+        // No menu of its own: its row ends where the others' menus start.
+        if root.entry.menu.length == 0: Rectangle { width: 36px; }
+        if root.entry.menu.length > 0: VerticalLayout {
+            alignment: center;
+            Menu {
+                size: 36px;
+                label: "More for " + root.entry.name;
+                items: root.entry.menu;
+                chosen(id) => { Mods.row-menu(root.entry.id, id); }
+            }
+        }
+    }
+}
+
+component Rows inherits VerticalLayout {
+    in property <[ModRow]> rows;
+    for entry[i] in root.rows: VerticalLayout {
+        if i > 0: Rule { }
+        ModLine { entry: entry; }
+    }
+}
+
+component GetMods inherits Card {
+    hint: true;
+    HorizontalLayout {
+        padding: 20px;
+        padding-left: 22px;
+        spacing: 16px;
+        Rectangle {
+            width: 44px;
+            height: 44px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 22px;
+            background: Theme.amber.with-alpha(0.14);
+            Icon { commands: Icons.globe; colour: Theme.amber; size: 20px; }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 4px;
+            Text { text: "Get mods"; font-family: Theme.head; font-weight: 700; font-size: Theme.size-h2; color: Theme.gold; }
+            Text {
+                text: "Find mods on the official hub, openrac.dev, or anywhere else: a GitHub page, a .zip or a folder. Add them below.";
+                color: Theme.body;
+                font-size: 13.5px;
+                wrap: word-wrap;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button { text: "Open the mod hub"; icon: Icons.external; on-card: true; clicked => { Mods.open-url("https://openrac.dev/mods"); } }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button { text: "Publish your mod"; icon: Icons.external; on-card: true; clicked => { Mods.open-url("https://openrac.dev/mods/submit"); } }
+        }
+    }
+}
+
+// What a link's repository holds, each mod with its Install button.
+component LinkPreview inherits Rectangle {
+    border-radius: Theme.radius-sm;
+    background: Theme.ink-deep;
+    height: list.preferred-height;
+    list := VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: Mods.link-from; color: Theme.text; font-size: 13.5px; wrap: word-wrap; vertical-alignment: center; horizontal-stretch: 1; }
+            IconButton { icon: Icons.x; label: "Close"; clicked => { Mods.close-link(); } }
+        }
+        if Mods.link-note != "": Text { text: Mods.link-note; color: Theme.soft; font-size: 13px; wrap: word-wrap; }
+        if Mods.link-native: HorizontalLayout {
+            spacing: 8px;
+            Icon { y: (parent.height - self.height) / 2; commands: Icons.info; colour: Theme.warn; size: 16px; }
+            Text {
+                text: "Mods that run code are programs. Install them only from people you trust.";
+                color: Theme.warn;
+                font-size: 13px;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+            }
+        }
+        for m[i] in Mods.link-mods: VerticalLayout {
+            if i > 0: Rule { }
+            HorizontalLayout {
+                spacing: 12px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 3px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        Text { text: m.name; color: Theme.text; font-weight: 600; }
+                        Text { text: m.meta; color: Theme.dim; font-size: 12.5px; vertical-alignment: center; }
+                    }
+                    if m.line != "": Text { text: m.line; color: Theme.soft; font-size: 13px; wrap: word-wrap; }
+                    Status { text: m.kind; tone: m.kind-tone; }
+                    if !m.fits && m.why != "": Text { text: m.why; color: Theme.err; font-size: 12.5px; wrap: word-wrap; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    if m.fits: Button {
+                        text: Mods.installing == m.id ? "Installing…" : m.button;
+                        icon: Icons.check;
+                        on-card: true;
+                        enabled: Mods.installing == "";
+                        clicked => { Mods.install(m.id); }
+                    }
+                    if !m.fits: Status { text: "Cannot be installed"; tone: Tone.err; }
+                }
+            }
+        }
+    }
+}
+
+component AddMod inherits Card {
+    property <string> link;
+    VerticalLayout {
+        padding: 22px;
+        padding-top: 18px;
+        spacing: 12px;
+        Text { text: "Add a mod"; font-family: Theme.head; font-weight: 700; font-size: Theme.size-h2; color: Theme.gold; }
+        HorizontalLayout {
+            spacing: 6px;
+            Field {
+                text <=> root.link;
+                placeholder: "Paste a mod's link, like openrac.dev/mods/lock-strafe, or a friend's mod code";
+                enabled: Mods.adding == "";
+                accepted => { Mods.add-link(root.link); }
+            }
+            Button {
+                text: "Find";
+                on-card: true;
+                enabled: root.link != "" && Mods.adding == "";
+                clicked => { Mods.add-link(root.link); }
+            }
+            Button { text: "File…"; icon: Icons.library; on-card: true; enabled: Mods.adding == ""; clicked => { Mods.add-file(); } }
+            Button { text: "Folder…"; icon: Icons.folder; on-card: true; enabled: Mods.adding == ""; clicked => { Mods.add-folder(); } }
+        }
+        if Mods.adding != "": HorizontalLayout {
+            spacing: 10px;
+            Spinner { size: 16px; }
+            Text { text: Mods.adding; color: Theme.soft; font-size: 13px; vertical-alignment: center; }
+        }
+        if Mods.add-said != "": Text {
+            text: Mods.add-said;
+            color: Mods.add-said-failed ? Theme.err : Theme.ok;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+        if Mods.link-mods.length > 0: LinkPreview { }
+    }
+}
+
+component Purist inherits Card {
+    hint: true;
+    HorizontalLayout {
+        padding: 12px;
+        padding-left: 18px;
+        spacing: 12px;
+        Icon { y: (parent.height - self.height) / 2; commands: Icons.info; colour: Theme.amber; size: 16px; }
+        Text {
+            text: "Play starts the game without mods. Turn on Mods under Play to use them.";
+            color: Theme.body;
+            font-size: 13.5px;
+            wrap: word-wrap;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+        VerticalLayout {
+            alignment: center;
+            Button { text: "Turn on"; compact: true; on-card: true; clicked => { Mods.turn-on-mods(); } }
+        }
+    }
+}
+
+component Toolbar inherits HorizontalLayout {
+    spacing: 6px;
+    Rectangle {
+        horizontal-stretch: 1;
+        min-width: 160px;
+        Field {
+            property <int> revision: Mods.revision;
+            changed revision => { self.text = Mods.query; }
+            placeholder: "Find a mod by name or words";
+            on-card: false;
+            edited(text) => { Mods.search(text); }
+        }
+    }
+    for f in Mods.filters: Chip {
+        text: f.label;
+        count: f.count;
+        on: Mods.filter == f.id;
+        clicked => { Mods.set-filter(f.id); }
+    }
+    Rectangle { width: 6px; }
+    Chip { text: "Load order"; on: Mods.sort == "order"; clicked => { Mods.set-sort("order"); } }
+    Chip { text: "A to Z"; on: Mods.sort == "name"; clicked => { Mods.set-sort("name"); } }
+}
+
+component ModsPanel inherits Card {
+    VerticalLayout {
+        alignment: start;
+        padding: 22px;
+        padding-top: 18px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: Mods.heading;
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Theme.gold;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            if Mods.update-all != "": Button {
+                text: Mods.update-all;
+                icon: Icons.download;
+                compact: true;
+                on-card: true;
+                clicked => { Mods.update-all-now(); }
+            }
+            Button {
+                text: Mods.checking ? "Looking…" : "Check for updates";
+                icon: Icons.refresh;
+                compact: true;
+                on-card: true;
+                enabled: !Mods.checking;
+                clicked => { Mods.check-updates(); }
+            }
+        }
+        if Mods.said != "": Text {
+            text: Mods.said;
+            color: Mods.said-failed ? Theme.err : Theme.ok;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+        if !Mods.read: HorizontalLayout {
+            spacing: 10px;
+            padding-top: 8px;
+            Spinner { size: 16px; }
+            Text { text: "Reading your mods…"; color: Theme.soft; vertical-alignment: center; }
+        }
+        Rows { rows: Mods.gameplay; }
+        if Mods.read && Mods.empty != "": Text {
+            text: Mods.empty;
+            color: Theme.soft;
+            wrap: word-wrap;
+        }
+        if Mods.order-line != "": Text {
+            text: Mods.order-line;
+            color: Theme.dim;
+            font-size: 12.5px;
+            wrap: word-wrap;
+        }
+        if Mods.tools.length > 0: VerticalLayout {
+            spacing: 4px;
+            padding-top: 14px;
+            Text { text: "Tools"; color: Theme.lav; font-weight: 700; font-size: 14px; }
+            Text {
+                text: "Pages of their own in the launcher, always on: they make things, the game does not load them.";
+                color: Theme.soft;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            Rows { rows: Mods.tools; }
+        }
+    }
+}
+
+component Mine inherits VerticalLayout {
+    spacing: 14px;
+    GetMods { }
+    AddMod { }
+    if Mods.purist: Purist { }
+    if Mods.toolbar: Toolbar { }
+    ModsPanel { }
+}
+
+component Placeholder inherits Card {
+    in property <string> title;
+    in property <string> line;
+    VerticalLayout {
+        padding: 22px;
+        spacing: 6px;
+        Text { text: root.title; font-family: Theme.head; font-weight: 700; font-size: Theme.size-h2; color: Theme.gold; }
+        Text { text: root.line; color: Theme.body; wrap: word-wrap; }
+    }
+}
+
+export component ModsView inherits Rectangle {
+    out property <bool> scrolled: scroll.scrolled;
+    scroll := Scroll {
+        HorizontalLayout {
+            padding-left: 22px;
+            padding-right: 28px;
+            VerticalLayout {
+                alignment: start;
+                padding-top: 26px;
+                padding-bottom: 60px;
+                spacing: 14px;
+                Text {
+                    text: Mods.title;
+                    font-family: Theme.head;
+                    font-weight: 700;
+                    font-size: Theme.size-h1;
+                    color: Theme.gold;
+                    wrap: word-wrap;
+                }
+                Text { text: "Add mods, switch them on, and play."; color: Theme.soft; }
+                if Mods.mode == "mods": Mine { }
+                if Mods.mode != "mods": Placeholder { title: Mods.mode-title; line: Mods.mode-line; }
+            }
+        }
+    }
+}
+
+export component ModsPage inherits HorizontalLayout {
+    SideList {
+        entries: Mods.entries;
+        selected: Games.selected;
+        label: "Your games";
+        picked(key) => { Mods.pick(key); }
+    }
+    ModsView { }
+}

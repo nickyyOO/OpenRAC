@@ -8,6 +8,7 @@ mod game;
 mod host;
 pub mod labels;
 mod launcher;
+mod mod_words;
 mod mods;
 mod paths;
 mod player;
@@ -23,6 +24,11 @@ mod tasks;
 pub use failure::{bake_failure, has_path, hide_paths, tool_failure, BakeFailure, NextStep, ToolError, ToolFailure};
 pub use host::{Change, Host, Notice, NoticeKind};
 pub use launcher::{bundled_copy, game_data, Crashes, Launcher, Start, Stopped, View};
+pub use mod_words::{
+    badge as mod_badge, game_state as mod_game_state, group_of, kind as mod_kind, kind_hint, matches as mod_matches,
+    moddable, state as mod_state, Label as ModLabel, ModGroup, Moddable,
+};
+pub use mods::{Added, TurnedOn};
 pub use paths::Paths;
 pub use player::{
     action, failed_step, found_disc, has_port, is_built, is_playing, missing_program, play_warning, player_state,

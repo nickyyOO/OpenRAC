@@ -84,18 +84,7 @@ pub fn stamp(stamp: &str) -> String {
     }
 }
 
-/// 2202320 -> "2 202 320" (narrow no-break spaces).
-pub fn grouped(n: u64) -> String {
-    let digits = n.to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push('\u{202f}');
-        }
-        out.push(c);
-    }
-    out
-}
+pub use openrac_launcher_service::labels::grouped;
 
 /// 1 234 567 bytes -> "1,2 MB".
 pub fn size(bytes: u64) -> String {

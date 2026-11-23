@@ -13,6 +13,7 @@ use crate::pages::activity::{self, ActivityState};
 use crate::pages::differences::{self, DifferencesState};
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
+use crate::pages::mods::{self, ModsState};
 use crate::pages::saves::{self, SavesState};
 use crate::pages::settings::{self, SettingsState};
 use crate::pages::stopped::{self, StoppedState};
@@ -32,6 +33,7 @@ pub struct Shell {
     pub differences: DifferencesState,
     pub activity: ActivityState,
     pub settings: SettingsState,
+    pub mods: ModsState,
 }
 
 thread_local! {
@@ -60,6 +62,7 @@ pub fn install(window: &AppWindow) {
         differences: DifferencesState::default(),
         activity: ActivityState::default(),
         settings: SettingsState::default(),
+        mods: ModsState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -81,6 +84,7 @@ pub fn install(window: &AppWindow) {
     differences::install(window);
     activity::install(window);
     settings::install(window);
+    mods::install(window);
     #[cfg(not(target_os = "android"))]
     crate::pages::shortcuts::install(window);
 }
@@ -189,6 +193,7 @@ impl Shell {
         self.apply_theme();
         self.show_game();
         self.show_help();
+        self.mods.show(self);
     }
 
     pub fn apply_theme(&self) {
@@ -233,6 +238,7 @@ impl Shell {
             }
         }
         games_ui.set_entries(ModelRc::new(VecModel::from(entries)));
+        self.mods.show_list(self);
         self.show_game();
         self.show_help();
         self.show_stopped();
@@ -290,7 +296,7 @@ impl Shell {
         self.show_activity();
     }
 
-    fn pick_version(&self, key: &str) {
+    pub fn pick_version(&self, key: &str) {
         self.window.global::<Games>().set_selected(key.into());
         self.apply_theme();
         self.follow_view();
@@ -301,6 +307,8 @@ impl Shell {
     fn game_picked(&self) {
         self.help.reset(&self.window);
         self.saves.reset(&self.window);
+        self.mods.reset(&self.window);
+        self.mods.read(self);
         self.show_game();
         self.show_stopped();
         self.read_game_details();

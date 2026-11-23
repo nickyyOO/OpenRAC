@@ -1,5 +1,5 @@
 //! Words for what the catalogue and the games name by code: the names the launcher shows, a
-//! disc's region, each game's levels.
+//! disc's region, each game's levels, a large number.
 
 /// Names the launcher shows in place of the catalogue's (games/<game>/game.json).
 pub fn shown_title(title: &str) -> &str {
@@ -215,6 +215,19 @@ pub fn level_name(game: &str, number: u32) -> String {
         .into_iter()
         .find(|(n, _)| *n == number)
         .map_or_else(|| format!("Level {number}"), |(_, name)| name.into())
+}
+
+/// 2202320 -> "2 202 320" (narrow no-break spaces).
+pub fn grouped(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push('\u{202f}');
+        }
+        out.push(c);
+    }
+    out
 }
 
 #[cfg(test)]

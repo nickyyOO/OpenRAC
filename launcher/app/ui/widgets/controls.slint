@@ -30,6 +30,8 @@ export component Button inherits Rectangle {
     in property <bool> big: false;
     // The narrowest it gets, whatever its words.
     in property <length> least: 0px;
+    // The icon after the words (a way on: "Settings ›").
+    in property <bool> icon-after: false;
     callback clicked();
 
     property <color> fill: kind == ButtonKind.primary ? Theme.amber
@@ -62,7 +64,7 @@ export component Button inherits Rectangle {
             padding-right: self.padding-left;
             spacing: root.big ? 12px : 8px;
             alignment: center;
-            if root.icon != "": Icon {
+            if root.icon != "" && !root.icon-after: Icon {
                 y: (parent.height - self.height) / 2;
                 commands: root.icon;
                 colour: root.ink;
@@ -76,6 +78,13 @@ export component Button inherits Rectangle {
                 font-size: root.big ? 18px : root.compact ? 13px : Theme.size-button;
                 font-weight: root.compact ? 500 : 600;
                 vertical-alignment: center;
+            }
+            if root.icon != "" && root.icon-after: Icon {
+                y: (parent.height - self.height) / 2;
+                commands: root.icon;
+                colour: root.ink;
+                size: root.compact ? 16px : 17px;
+                filled: false;
             }
         }
     }

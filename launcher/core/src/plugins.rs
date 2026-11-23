@@ -743,7 +743,7 @@ pub struct SharedHook {
 }
 
 /// A mod as the Mods tab shows it.
-#[derive(Debug, Clone, Serialize, PartialEq, ts_rs::TS)]
+#[derive(Debug, Clone, Default, Serialize, PartialEq, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginView {
     pub id: String,
