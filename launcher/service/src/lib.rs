@@ -2,6 +2,7 @@
 //! game's next step, Discord. The window (app/) shows it and asks it to act; Android's activity
 //! and a desktop window are both a [`Host`] to it.
 
+mod differences;
 mod failure;
 mod game;
 mod host;

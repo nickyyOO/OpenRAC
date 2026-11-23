@@ -1,0 +1,163 @@
+// A game's differences from the original: what its PC port does otherwise than the PS2 game.
+// Grouped: the game fixes, each with a switch bound to the port's own setting, then the guards
+// that keep it from crashing, then what comes with being a PC program. Each entry folds open to
+// say what the original does and what the port does.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Card, Rule, Switch } from "../widgets/controls.slint";
+
+export struct DiffRow {
+    id: string,
+    name: string,
+    // A fix the player can switch: its switch shows; else `state` says "Always on" or nothing.
+    switchable: bool,
+    on: bool,
+    state: string,
+    original: string,
+    port: string,
+    // A contributor's detail: the setting and where in the code it is.
+    refs: string,
+}
+
+export struct DiffGroup {
+    title: string,
+    about: string,
+    // The game runs: its fixes are locked here.
+    locked: bool,
+    rows: [DiffRow],
+}
+
+export global Differences {
+    in property <bool> shown;
+    in property <bool> developer;
+    in property <string> settings-file;
+    in property <[DiffGroup]> groups;
+    in property <string> saving;
+    callback set-fix(string, bool);
+}
+
+component Entry inherits VerticalLayout {
+    in property <DiffRow> entry;
+    in property <bool> locked;
+    property <bool> open;
+    HorizontalLayout {
+        spacing: 10px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        Rectangle {
+            horizontal-stretch: 1;
+            area := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.open = !root.open; }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: root.open ? Icons.down : Icons.next;
+                    colour: Theme.dim;
+                    size: 12px;
+                }
+                Text {
+                    text: root.entry.name;
+                    color: area.has-hover ? Theme.gold : Theme.text;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        if root.entry.switchable: Text {
+            text: root.entry.on ? "On" : "Original";
+            color: root.entry.on ? Theme.ok : Theme.soft;
+            font-size: 12.5px;
+            vertical-alignment: center;
+        }
+        if root.entry.switchable: VerticalLayout {
+            alignment: center;
+            Switch {
+                checked: root.entry.on;
+                enabled: !root.locked && Differences.saving != root.entry.id;
+                label: root.entry.name + ": on is the port's fix, off plays as the original";
+                toggled(on) => { Differences.set-fix(root.entry.id, on); }
+            }
+        }
+        if !root.entry.switchable && root.entry.state != "": Text {
+            text: root.entry.state;
+            color: Theme.soft;
+            font-size: 12.5px;
+            vertical-alignment: center;
+        }
+    }
+    if root.open: VerticalLayout {
+        padding-left: 18px;
+        padding-bottom: 10px;
+        spacing: 8px;
+        VerticalLayout {
+            Text { text: "On a PlayStation 2"; color: Theme.lav; font-weight: 600; font-size: 13px; }
+            Text { text: root.entry.original; color: Theme.body; font-size: 13.5px; wrap: word-wrap; }
+        }
+        VerticalLayout {
+            Text { text: "In OpenRAC"; color: Theme.lav; font-weight: 600; font-size: 13px; }
+            Text { text: root.entry.port; color: Theme.body; font-size: 13.5px; wrap: word-wrap; }
+        }
+        if Differences.developer && root.entry.refs != "": Text {
+            text: root.entry.refs;
+            color: Theme.dim;
+            font-family: "monospace";
+            font-size: 11.5px;
+            wrap: word-wrap;
+        }
+    }
+}
+
+export component DifferencesBlock inherits Card {
+    VerticalLayout {
+        alignment: start;
+        padding: 22px;
+        spacing: 12px;
+        HorizontalLayout {
+            spacing: 10px;
+            Text {
+                text: "Differences from the original";
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Theme.gold;
+                horizontal-stretch: 1;
+                wrap: word-wrap;
+            }
+            if Differences.developer: Text {
+                text: Differences.settings-file;
+                color: Theme.soft;
+                font-family: "monospace";
+                font-size: 11.5px;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        Text {
+            text: "What this PC version does otherwise than the PlayStation 2 game, and why.";
+            color: Theme.soft;
+            wrap: word-wrap;
+        }
+        for group in Differences.groups: VerticalLayout {
+            spacing: 4px;
+            padding-top: 8px;
+            Text { text: group.title; color: Theme.text; font-weight: 700; font-size: Theme.size-h3; }
+            Text { text: group.about; color: Theme.soft; font-size: 13px; wrap: word-wrap; }
+            if group.locked: Text {
+                text: "The game is running, so these are locked here: the game would save over a change made now. Change them in the game under Options, Game fixes, or here once it has closed.";
+                color: Theme.warn;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            for row[i] in group.rows: VerticalLayout {
+                Rule { }
+                Entry { entry: row; locked: group.locked; }
+            }
+        }
+    }
+}

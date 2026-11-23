@@ -9,6 +9,7 @@ use openrac_launcher_service::core::library::GameView;
 use openrac_launcher_service::{player_state, player_version, Change, Launcher, Notice, Situation, Tone as PlayerTone};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::pages::differences::{self, DifferencesState};
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
 use crate::pages::saves::{self, SavesState};
@@ -26,6 +27,7 @@ pub struct Shell {
     pub help: HelpState,
     pub saves: SavesState,
     pub stopped: StoppedState,
+    pub differences: DifferencesState,
 }
 
 thread_local! {
@@ -51,6 +53,7 @@ pub fn install(window: &AppWindow) {
         help: HelpState::default(),
         saves: SavesState::default(),
         stopped: StoppedState::default(),
+        differences: DifferencesState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -69,6 +72,7 @@ pub fn install(window: &AppWindow) {
     help::install(window);
     saves::install(window);
     stopped::install(window);
+    differences::install(window);
     #[cfg(not(target_os = "android"))]
     crate::pages::shortcuts::install(window);
 }
@@ -217,6 +221,10 @@ impl Shell {
         self.saves.read(launcher, serial);
     }
 
+    pub fn show_differences(&self) {
+        self.differences.show(self);
+    }
+
     pub fn show_stopped(&self) {
         self.stopped.show(self);
     }
@@ -244,6 +252,7 @@ impl Shell {
         app.set_running_job(launcher.running_job().map(|j| j.title).unwrap_or_default().into());
         app.set_pending_jobs(launcher.pending_jobs() as i32);
         self.library_changed();
+        self.show_differences();
     }
 
     fn pick_version(&self, key: &str) {
@@ -261,6 +270,10 @@ impl Shell {
         self.show_stopped();
         self.read_game_details();
         self.read_card();
+        if let Some(launcher) = self.launcher() {
+            let key = self.window.global::<Games>().get_selected().to_string();
+            self.differences.read(launcher, key);
+        }
         #[cfg(not(target_os = "android"))]
         crate::pages::shortcuts::read(self);
     }
