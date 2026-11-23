@@ -440,6 +440,10 @@ float camera_fov();
 // Whether a mod hides the game's own HUD this level load (openrac_api.hud_hide).
 bool hud_hidden();
 
+// What the mods set the menu's option `name` to (openrac_api.menu_option_set): an
+// OPENRAC_MENU_OPTION_* state, DEFAULT when none did. From any thread.
+int menu_option(std::string_view name);
+
 // The air a mod draws this level load with (openrac_api.scene_air), none for the game's own. From
 // any thread.
 std::optional<openrac_air> scene_air();

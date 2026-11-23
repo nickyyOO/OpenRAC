@@ -24,6 +24,7 @@
 #include "debug/menu_ui.h"
 #include "frontend.h"
 #include "game/common/profile.h"
+#include "mods.h"
 #include "openrac/game_host.h"
 #include "platform/bindings.h"
 #include "platform/input.h"
@@ -685,9 +686,11 @@ void menu_open_panel() {
     }
 }
 
-// Whether this game vibrates the controller at all (its profile's has_rumble).
+// Whether this game vibrates the controller (its profile's has_rumble), or a mod turned the
+// Vibration option on (openrac_api.menu_option_set).
 bool game_has_rumble() {
-    return host::game_profile(openrac_game.id).has_rumble();
+    return host::game_profile(openrac_game.id).has_rumble()
+           || mods::menu_option(menu::option_name(Id::RumbleStrength)) == OPENRAC_MENU_OPTION_ON;
 }
 
 }  // namespace
