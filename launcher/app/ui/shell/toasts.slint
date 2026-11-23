@@ -1,0 +1,88 @@
+// Messages at the window's foot, newest last: a few words, a cross, and for a failed task its
+// last output behind Details.
+
+import { Theme } from "../theme.slint";
+import { App, Toast } from "../state.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind } from "../widgets/controls.slint";
+
+component ToastCard inherits Rectangle {
+    in property <Toast> toast;
+    property <bool> open: false;
+    border-radius: Theme.radius-sm;
+    background: Theme.panel-hi;
+    drop-shadow-blur: 24px;
+    drop-shadow-offset-y: 8px;
+    drop-shadow-color: #00000059;
+    VerticalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
+            Icon {
+                y: 1px;
+                commands: root.toast.error ? Icons.warn : Icons.info;
+                colour: root.toast.error ? Theme.err : Theme.amber;
+                size: 17px;
+            }
+            Text {
+                text: root.toast.text;
+                color: Theme.text;
+                font-size: Theme.size-body;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+            }
+            if root.toast.details != "": Text {
+                text: root.open ? "Hide" : "Details";
+                color: Theme.amber;
+                font-size: Theme.size-small;
+                font-weight: 600;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open = !root.open; }
+                }
+            }
+            Icon {
+                commands: Icons.x;
+                colour: Theme.soft;
+                size: 15px;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { App.dismiss-toast(root.toast.id); }
+                }
+            }
+        }
+        if root.open: Rectangle {
+            border-radius: Theme.radius-xs;
+            background: Theme.ink-deep;
+            max-height: 220px;
+            VerticalLayout {
+                padding: 10px;
+                Text {
+                    text: root.toast.details;
+                    color: Theme.soft;
+                    font-family: "monospace";
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        if root.open: HorizontalLayout {
+            alignment: end;
+            Button {
+                text: "Copy";
+                icon: Icons.copy;
+                compact: true;
+                on-card: true;
+                clicked => { App.copy-text(root.toast.text + "\n\n" + root.toast.details); }
+            }
+        }
+    }
+}
+
+export component Toasts inherits VerticalLayout {
+    alignment: end;
+    spacing: 8px;
+    for t in App.toasts: ToastCard { toast: t; }
+}

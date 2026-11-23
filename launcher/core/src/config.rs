@@ -63,7 +63,7 @@ pub struct Config {
     pub update_branch: Option<String>,
     /// Custom Discord application ID (optional).
     pub discord_client_id: Option<String>,
-    /// The launcher's theme (src/lib/palettes.json): "openrac" (default), "oled", "nord"
+    /// The launcher's theme (core/palettes.json): "openrac" (default), "oled", "nord"
     /// or "mocha". The accent is not a theme's: it is the picked game's.
     pub theme: String,
     /// The picked game's own bar, gold and coal (palettes.json game_colors) instead of the

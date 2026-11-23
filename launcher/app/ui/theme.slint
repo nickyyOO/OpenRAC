@@ -1,0 +1,76 @@
+// The launcher's look (docs/STYLE.md): the colours of the theme picked in Settings and the picked
+// game's accent, set from Rust (src/theme.rs, from core's palettes.json), the type and the sizes.
+
+import "../fonts/Inter-Regular.ttf";
+import "../fonts/Inter-Medium.ttf";
+import "../fonts/Inter-SemiBold.ttf";
+import "../fonts/Inter-Bold.ttf";
+import "../fonts/Orbitron-SemiBold.ttf";
+import "../fonts/Orbitron-Bold.ttf";
+import "../fonts/Audiowide-Regular.ttf";
+
+export global Theme {
+    // The page, its darkest parts, the game list beside it.
+    in-out property <color> ink: #191919;
+    in-out property <color> ink-deep: #121212;
+    in-out property <color> rail: #131313;
+    // Cards and panels, and one under the pointer or open.
+    in-out property <color> panel: #24221e;
+    in-out property <color> panel-hi: #2c2a26;
+    // The accent: the main button, links, what is on; headings; small labels.
+    in-out property <color> amber: #f5c040;
+    in-out property <color> gold: #ffe08f;
+    in-out property <color> brand: #d6a020;
+    // The light under the header, in the picked game's colour.
+    in-out property <color> glow: #f5c040;
+    // Text, from most to least prominent.
+    in-out property <color> text: #e6e6eb;
+    in-out property <color> body: #cacad3;
+    in-out property <color> lav: #d4d4de;
+    in-out property <color> soft: #b4b4bf;
+    in-out property <color> dim: #8b8b98;
+    // Lines between rows; never round a control.
+    in-out property <color> line: #ffffff17;
+    in-out property <color> line-strong: #ffffff29;
+    // Controls on the page, and on a card.
+    in-out property <color> control: #24221e;
+    in-out property <color> control-hi: #2e2c28;
+    in-out property <color> control-card: #2e2c28;
+    in-out property <color> control-card-hi: #363430;
+    // States.
+    in-out property <color> ok: #8fd694;
+    in-out property <color> warn: #f5c040;
+    in-out property <color> err: #ff8a7a;
+
+    // A control that is on or picked: the accent at 22 % (28 % under the pointer) on the page.
+    out property <color> on-fill: ink.mix(amber, 0.78);
+    out property <color> on-fill-hi: ink.mix(amber, 0.72);
+    // Text on the accent.
+    out property <color> on-amber: ink-deep;
+
+    // Type.
+    out property <string> sans: "Inter";
+    out property <string> head: "Orbitron";
+    out property <string> brand-font: "Audiowide";
+    out property <length> size-body: 14px;
+    out property <length> size-small: 12.5px;
+    out property <length> size-tiny: 11.5px;
+    out property <length> size-button: 13.5px;
+    out property <length> size-h1: 25px;
+    out property <length> size-h2: 17px;
+    out property <length> size-h3: 14.5px;
+
+    // Corners: cards; controls; badges.
+    out property <length> radius: 12px;
+    out property <length> radius-sm: 6px;
+    out property <length> radius-xs: 4px;
+
+    // Motion: what arrives and settles.
+    out property <duration> fast: 150ms;
+    out property <duration> medium: 280ms;
+    out property <duration> slow: 500ms;
+
+    // Android is touched: taller targets, the rail instead of the header.
+    in-out property <bool> touch: false;
+    out property <length> target: touch ? 44px : 40px;
+}

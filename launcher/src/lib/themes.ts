@@ -3,7 +3,7 @@
 // names the games by their own ids; OpenRAC by release order:
 //   rac1 = "rac1", rac2 = "gc", rac3 = "uya", rac4 = "deadlocked", rac5 = "sm", rac6 = "sac".
 // Keep the values in step with the site (docs/STYLE.md).
-import palettes from "./palettes.json";
+import palettes from "../../core/palettes.json";
 
 export interface Theme {
   /** The card's gradient, top to bottom. */

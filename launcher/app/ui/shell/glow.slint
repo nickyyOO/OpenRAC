@@ -1,0 +1,25 @@
+// The light under the header: a soft glow of the picked game's colour from the window's top,
+// fading out by about two thirds down, so the page starts lit and darkens downwards.
+
+import { Theme } from "../theme.slint";
+
+// An ellipse of light centred on the window's top edge: a circle, squashed.
+component Light inherits Rectangle {
+    in property <length> wide;
+    in property <length> tall;
+    in property <float> strength;
+    in property <float> reach;
+    in property <length> across;
+    width: wide;
+    height: wide;
+    x: (across - self.width) / 2;
+    y: -self.height / 2;
+    transform-scale-y: tall / wide;
+    transform-origin: { x: self.width / 2, y: self.height / 2 };
+    background: @radial-gradient(circle, Theme.glow.with-alpha(strength) 0%, Theme.glow.with-alpha(strength * 0.4) reach * 0.6, Theme.glow.with-alpha(0) reach);
+}
+
+export component Glow inherits Rectangle {
+    Light { across: parent.width; wide: parent.width * 1.8; tall: 1240px; strength: 0.13; reach: 0.72; }
+    Light { across: parent.width; wide: parent.width * 1.2; tall: 760px; strength: 0.07; reach: 0.7; }
+}

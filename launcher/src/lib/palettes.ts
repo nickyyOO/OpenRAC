@@ -2,7 +2,7 @@
 // not a theme's: it is the picked game's (themes.ts, accentProperties), under every theme. "openrac" is app.css's own colours, the website's. The
 // game's options drawer wears the same (port/game/common/ui_colors.h).
 
-import data from "./palettes.json";
+import data from "../../core/palettes.json";
 
 export type PaletteId = "openrac" | "oled" | "nord" | "mocha";
 

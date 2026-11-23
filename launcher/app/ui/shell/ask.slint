@@ -1,0 +1,44 @@
+// A question over the window: the words, Cancel and the answer that goes on.
+
+import { Theme } from "../theme.slint";
+import { App } from "../state.slint";
+import { Button, ButtonKind } from "../widgets/controls.slint";
+
+export component Ask inherits Rectangle {
+    background: #000000a0;
+    // Clicks outside the dialog go nowhere.
+    TouchArea { }
+    Rectangle {
+        width: min(460px, parent.width - 32px);
+        height: body.preferred-height;
+        border-radius: Theme.radius;
+        background: Theme.panel;
+        drop-shadow-blur: 50px;
+        drop-shadow-offset-y: 18px;
+        drop-shadow-color: #00000073;
+        body := VerticalLayout {
+            padding: 22px;
+            spacing: 20px;
+            Text {
+                text: App.ask-text;
+                color: Theme.text;
+                font-size: Theme.size-body;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 6px;
+                Button {
+                    text: "Cancel";
+                    on-card: true;
+                    clicked => { App.answer(false); }
+                }
+                Button {
+                    text: App.ask-yes;
+                    kind: ButtonKind.primary;
+                    clicked => { App.answer(true); }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,68 @@
+// The launcher's window: the header over the page, the page of the open tab, the toasts.
+
+import { Theme } from "theme.slint";
+import { App, Page, SideEntry, Toast } from "state.slint";
+import { Links } from "links.slint";
+import { Header } from "shell/header.slint";
+import { Glow } from "shell/glow.slint";
+import { Toasts } from "shell/toasts.slint";
+import { Ask } from "shell/ask.slint";
+import { Button, ButtonKind, Spinner } from "widgets/controls.slint";
+import { Games, GamesPage } from "pages/games.slint";
+import { Placeholder } from "pages/placeholder.slint";
+
+export { Theme, App, Page, SideEntry, Toast, Links, Games }
+
+export component AppWindow inherits Window {
+    title: "OpenRAC Launcher";
+    preferred-width: 1200px;
+    preferred-height: 780px;
+    min-width: 720px;
+    min-height: 520px;
+    background: Theme.ink;
+    default-font-family: Theme.sans;
+    default-font-size: Theme.size-body;
+
+    Glow { }
+
+    if !App.ready: VerticalLayout {
+        alignment: center;
+        spacing: 16px;
+        padding: 24px;
+        if App.start-error == "": HorizontalLayout {
+            alignment: center;
+            Spinner { }
+        }
+        if App.start-error != "": Text {
+            text: "The launcher could not start: " + App.start-error;
+            color: Theme.text;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+        if App.start-error != "": HorizontalLayout {
+            alignment: center;
+            Button {
+                text: "Try again";
+                kind: ButtonKind.primary;
+                clicked => { App.retry-start(); }
+            }
+        }
+    }
+
+    if App.ready: VerticalLayout {
+        Header { setup: !App.setup-complete; }
+        if App.page == Page.games: GamesPage { }
+        if App.page == Page.mods: Placeholder { title: "Mods"; }
+        if App.page == Page.develop: Placeholder { title: "Develop"; }
+        if App.page == Page.settings: Placeholder { title: "Settings"; }
+        if App.page == Page.activity: Placeholder { title: "Activity"; }
+    }
+
+    if App.asking: Ask { }
+
+    Toasts {
+        x: parent.width - self.width - 18px;
+        y: parent.height - self.height - 18px;
+        width: min(440px, parent.width - 36px);
+    }
+}

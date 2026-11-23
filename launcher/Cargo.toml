@@ -1,11 +1,10 @@
-# The launcher's Rust side: `core` holds everything that does not need a window
-# (the game catalogue, actions, settings, detection, the job runner) and builds
-# and tests on any machine; `src-tauri` is the desktop app, a thin layer of
-# Tauri commands over `core`. See docs/ARCHITECTURE.md.
+# The launcher: `core` is the domain (the game catalogue, actions, settings, detection, the job
+# runner), `service` the launcher's behaviour without a window (start-up, the job queue, the
+# game's next step), `app` the window (Slint), on a desktop and on Android. See docs/ARCHITECTURE.md.
 [workspace]
 resolver = "2"
-members = ["core", "ios", "service", "src-tauri"]
-default-members = ["core", "src-tauri"]
+members = ["app", "core", "ios", "service"]
+default-members = ["app", "core", "service"]
 
 [workspace.package]
 version = "1.1.1"

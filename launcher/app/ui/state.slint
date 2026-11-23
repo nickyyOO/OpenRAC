@@ -1,0 +1,61 @@
+// What the window shows, as Rust hands it over (src/view/), and what it asks Rust to do.
+
+import { Tone } from "widgets/controls.slint";
+
+export enum Page { games, mods, develop, settings, activity }
+
+// An entry of the list beside the Games, Mods and Develop tabs.
+export struct SideEntry {
+    key: string,
+    name: string,
+    // The disc's print (its picture), or an icon's path when it has none.
+    disc: image,
+    icon: string,
+    state: string,
+    tone: Tone,
+    // A red mark on the disc: a crash not seen yet.
+    mark: bool,
+    // A heading above the entry ("Versions").
+    group: string,
+}
+
+// A message at the window's foot.
+export struct Toast {
+    id: int,
+    text: string,
+    // A failed task's last output, behind Details.
+    details: string,
+    error: bool,
+}
+
+export global App {
+    // The settings are read and the window can show the launcher.
+    in property <bool> ready: false;
+    in property <string> start-error;
+    // Nothing is set up yet: the first run's settings.
+    in property <bool> setup-complete: true;
+    in property <bool> developer: false;
+    in property <bool> android: false;
+    in property <string> version: "";
+    in-out property <Page> page: games;
+
+    // The running job, for the header's chip, and how many wait.
+    in property <string> running-job;
+    in property <int> pending-jobs;
+    // An update of the launcher is ready: its words for the header.
+    in property <string> update-label;
+
+    in property <[Toast]> toasts;
+    callback dismiss-toast(int);
+    callback copy-text(string);
+
+    // A question only the player can answer, in a dialog over the window.
+    in property <bool> asking: false;
+    in property <string> ask-text;
+    in property <string> ask-yes;
+    callback answer(bool);
+
+    callback open-page(Page);
+    callback open-url(string);
+    callback retry-start();
+}

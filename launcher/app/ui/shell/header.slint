@@ -1,0 +1,238 @@
+// A desktop's header: no bar of its own, over the page. The logo, the version, the tabs, the
+// running job, an update, and the site and Discord at the right.
+
+import { Theme } from "../theme.slint";
+import { App, Page } from "../state.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Logo } from "../widgets/logo.slint";
+import { Spinner } from "../widgets/controls.slint";
+import { Links } from "../links.slint";
+
+
+// One of the header's buttons: the theme's control, 32 px tall, accent words in Inter Medium.
+component HeaderButton inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> on: false;
+    in property <bool> enabled: true;
+    in property <string> count;
+    callback clicked();
+    height: 32px;
+    border-radius: Theme.radius-sm;
+    background: on ? Theme.amber : area.has-hover ? Theme.control-hi : Theme.control;
+    opacity: enabled ? 1 : 0.45;
+    animate background { duration: Theme.fast; }
+    accessible-role: tab;
+    accessible-label: text;
+    accessible-item-selected: on;
+    accessible-action-default => { clicked(); }
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.icon;
+            colour: root.on ? Theme.ink-deep : Theme.amber;
+            size: 17px;
+        }
+        Text {
+            text: root.text;
+            color: root.on ? Theme.ink-deep : Theme.amber;
+            font-size: 14.5px;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+        if root.count != "": Rectangle {
+            y: (parent.height - self.height) / 2;
+            height: 18px;
+            width: max(18px, count-text.preferred-width + 10px);
+            border-radius: 9px;
+            background: Theme.ink-deep;
+            count-text := Text {
+                text: root.count;
+                color: Theme.amber;
+                font-size: 11px;
+                font-weight: 700;
+            }
+        }
+    }
+}
+
+// An icon-only link at the header's end.
+component HeaderLink inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> filled: false;
+    callback clicked();
+    width: 32px;
+    height: 32px;
+    border-radius: Theme.radius-sm;
+    background: area.has-hover ? Theme.control-hi : Theme.control;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { clicked(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Icon {
+        commands: root.icon;
+        colour: Theme.amber;
+        size: 18px;
+        filled: root.filled;
+        outline: !root.filled;
+    }
+}
+
+export component Header inherits Rectangle {
+    // The first run: the name only, nothing to go to yet.
+    in property <bool> setup: false;
+    // The page has scrolled under the header: a haze behind it.
+    in property <bool> under: false;
+    height: 50px;
+
+    // The haze: darker at the top, fading out below.
+    Rectangle {
+        height: parent.height + 24px;
+        y: 0;
+        background: @linear-gradient(180deg, Theme.ink.with-alpha(0.92) 0%, Theme.ink.with-alpha(0.75) 60%, Theme.ink.with-alpha(0) 100%);
+        opacity: root.under ? 1 : 0;
+        animate opacity { duration: Theme.medium; }
+    }
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        spacing: 22px;
+        alignment: stretch;
+
+        brand := HorizontalLayout {
+            spacing: 10px;
+            horizontal-stretch: 0;
+            Logo {
+                y: (parent.height - self.height) / 2;
+                size: 34px;
+                TouchArea {
+                    enabled: !root.setup;
+                    mouse-cursor: root.setup ? default : pointer;
+                    clicked => { App.open-page(Page.games); }
+                }
+            }
+            if App.version != "": Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: 18px;
+                width: version-text.preferred-width + 12px;
+                border-radius: Theme.radius-xs;
+                background: Theme.ink-deep;
+                version-text := Text {
+                    text: App.version;
+                    color: Theme.soft;
+                    font-size: 10.5px;
+                    font-weight: 600;
+                }
+            }
+        }
+
+        if !root.setup: HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            horizontal-stretch: 0;
+            padding-top: 9px;
+            padding-bottom: 9px;
+            HeaderButton {
+                text: "Games";
+                icon: Icons.library;
+                on: App.page == Page.games;
+                clicked => { App.open-page(Page.games); }
+            }
+            HeaderButton {
+                text: "Mods";
+                icon: Icons.edit;
+                on: App.page == Page.mods;
+                clicked => { App.open-page(Page.mods); }
+            }
+            if App.developer: HeaderButton {
+                text: "Develop";
+                icon: Icons.terminal;
+                on: App.page == Page.develop;
+                count: App.pending-jobs > 0 ? App.pending-jobs : "";
+                clicked => { App.open-page(Page.develop); }
+            }
+            HeaderButton {
+                text: "Settings";
+                icon: Icons.gear;
+                on: App.page == Page.settings;
+                clicked => { App.open-page(Page.settings); }
+            }
+        }
+
+        // The running job: its output, a click away.
+        if !root.setup && App.running-job != "": Rectangle {
+            y: (parent.height - self.height) / 2;
+            height: 32px;
+            horizontal-stretch: 1;
+            max-width: 320px;
+            border-radius: Theme.radius-sm;
+            background: job-area.has-hover ? Theme.control-hi : Theme.control;
+            job-area := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { App.open-page(App.developer ? Page.develop : Page.activity); }
+            }
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 8px;
+                Spinner {
+                    y: (parent.height - self.height) / 2;
+                    size: 15px;
+                }
+                Text {
+                    text: App.running-job;
+                    color: Theme.amber;
+                    font-size: 13px;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                if App.pending-jobs > 1: Text {
+                    text: "+" + (App.pending-jobs - 1);
+                    color: Theme.soft;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        HorizontalLayout {
+            spacing: 6px;
+            padding-top: 9px;
+            padding-bottom: 9px;
+            horizontal-stretch: 0;
+            if App.update-label != "": HeaderButton {
+                text: App.update-label;
+                icon: Icons.download;
+                clicked => { App.open-page(Page.settings); }
+            }
+            HeaderLink {
+                icon: Icons.globe;
+                label: "openrac.dev";
+                clicked => { App.open-url(Links.site); }
+            }
+            HeaderLink {
+                icon: Links.discord-mark;
+                label: "Join the OpenRAC Discord";
+                filled: true;
+                clicked => { App.open-url(Links.discord); }
+            }
+        }
+    }
+}

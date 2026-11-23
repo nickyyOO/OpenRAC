@@ -1,0 +1,34 @@
+[package]
+name = "openrac-launcher"
+description = "OpenRAC Launcher: set up, build and play the Ratchet & Clank decompilations"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+name = "openrac_launcher"
+# cdylib for Android (the APK loads the launcher as a library), rlib for the desktop program.
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "openrac-launcher"
+path = "src/main.rs"
+
+[dependencies]
+openrac-launcher-service = { path = "../service" }
+serde_json.workspace = true
+slint = { version = "1.19.0", default-features = false, features = ["std", "compat-1-2", "renderer-femtovg", "renderer-software"] }
+# The games' pictures are WebP, decoded once when first shown (art.rs).
+image = { version = "0.25.10", default-features = false, features = ["webp"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+slint = { version = "1.19.0", default-features = false, features = ["backend-winit"] }
+# The system's own file and folder dialogs.
+rfd = "0.18.0"
+# Opens folders, files and web pages with the system's program for them.
+open = "5.4.5"
+# Copy report and Copy in the toasts.
+arboard = { version = "3.7.0", default-features = false }
+
+[build-dependencies]
+slint-build = "1.19.0"

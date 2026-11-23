@@ -1,0 +1,367 @@
+// The launcher's controls (docs/STYLE.md): a fill and no edge, one step lighter than what is
+// behind them, 6 px corners, at least 40 px tall (44 on Android).
+
+import { Theme } from "../theme.slint";
+import { Icon } from "icon.slint";
+
+export enum ButtonKind {
+    // A plain control.
+    plain,
+    // The page's main action: a flat accent fill with dark text.
+    primary,
+    // On or picked: the accent tint with accent text.
+    on,
+    // Words only, for a minor step beside others (Dismiss).
+    quiet,
+    // Removes or stops something for good.
+    danger,
+}
+
+export component Button inherits Rectangle {
+    in property <string> text;
+    // An icon's path (Icons.*), or "" for none.
+    in property <string> icon;
+    in property <ButtonKind> kind: plain;
+    // On a card: the card's control colours.
+    in property <bool> on-card: false;
+    in property <bool> enabled: true;
+    // Smaller: the header's buttons, a row's.
+    in property <bool> compact: false;
+    in property <bool> big: false;
+    callback clicked();
+
+    property <color> fill: kind == ButtonKind.primary ? Theme.amber
+        : kind == ButtonKind.on ? (area.has-hover ? Theme.on-fill-hi : Theme.on-fill)
+        : kind == ButtonKind.quiet ? (area.has-hover ? (on-card ? Theme.control-card : Theme.control) : transparent)
+        : on-card ? (area.has-hover ? Theme.control-card-hi : Theme.control-card)
+        : (area.has-hover ? Theme.control-hi : Theme.control);
+    property <color> ink: kind == ButtonKind.primary ? Theme.on-amber
+        : kind == ButtonKind.on ? Theme.amber
+        : kind == ButtonKind.danger ? Theme.err
+        : kind == ButtonKind.quiet ? Theme.soft
+        : Theme.text;
+
+    min-height: compact ? 32px : big ? 52px : Theme.target;
+    min-width: self.min-height;
+    horizontal-stretch: 0;
+    opacity: enabled ? 1 : 0.45;
+
+    // The face: the main action lifts under the pointer.
+    face := Rectangle {
+        y: root.kind == ButtonKind.primary && area.has-hover && root.enabled ? -2px : 0px;
+        border-radius: Theme.radius-sm;
+        background: root.fill;
+        animate background { duration: Theme.fast; }
+        animate y { duration: Theme.fast; easing: ease-out; }
+        HorizontalLayout {
+            padding-left: root.text == "" ? 0 : (root.compact ? 12px : root.big ? 26px : 16px);
+            padding-right: self.padding-left;
+            spacing: root.big ? 12px : 8px;
+            alignment: center;
+            if root.icon != "": Icon {
+                y: (parent.height - self.height) / 2;
+                commands: root.icon;
+                colour: root.ink;
+                size: root.big ? 22px : root.compact ? 16px : 17px;
+                filled: false;
+            }
+            if root.text != "": Text {
+                text: root.text;
+                color: root.ink;
+                font-family: Theme.sans;
+                font-size: root.big ? 18px : root.compact ? 13px : Theme.size-button;
+                font-weight: root.compact ? 500 : 600;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    accessible-role: button;
+    accessible-label: text;
+    accessible-enabled: enabled;
+    accessible-action-default => { if enabled { clicked(); } }
+
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    // Focus reached by Tab shows its outline; a click does not.
+    property <bool> tabbed: false;
+    focus := FocusScope {
+        enabled: root.enabled;
+        focus-gained(reason) => { root.tabbed = reason == FocusReason.tab-navigation; }
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    // The focus outline.
+    Rectangle {
+        border-radius: Theme.radius-sm + 2px;
+        border-width: focus.has-focus && root.tabbed ? 2px : 0px;
+        border-color: Theme.amber;
+        x: -3px;
+        y: -3px;
+        width: parent.width + 6px;
+        height: parent.height + 6px;
+    }
+
+}
+
+// A round icon-only button (the header's site and Discord, a menu's dots).
+export component IconButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> on-card: false;
+    in property <bool> round: false;
+    in property <length> size: Theme.target;
+    in property <color> ink: Theme.text;
+    in property <bool> filled-icon: false;
+    callback clicked();
+    width: size;
+    height: size;
+    border-radius: round ? size / 2 : Theme.radius-sm;
+    background: on-card ? (area.has-hover ? Theme.control-card-hi : Theme.control-card) : (area.has-hover ? Theme.control-hi : Theme.control);
+    animate background { duration: Theme.fast; }
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { clicked(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Icon {
+        commands: root.icon;
+        colour: root.ink;
+        size: root.size * 0.45;
+        filled: root.filled-icon;
+    }
+}
+
+// An on/off switch: a dark track, gold-tinted with a gold knob when on.
+export component Switch inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    in property <string> label;
+    callback toggled(bool);
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: checked ? Theme.on-fill : Theme.ink-deep;
+    opacity: enabled ? 1 : 0.45;
+    animate background { duration: Theme.fast; }
+    accessible-role: switch;
+    accessible-checkable: true;
+    accessible-checked: checked;
+    accessible-label: label;
+    accessible-action-default => { if enabled { checked = !checked; toggled(checked); } }
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+    Rectangle {
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        y: 3px;
+        x: root.checked ? root.width - self.width - 3px : 3px;
+        background: root.checked ? Theme.amber : Theme.dim;
+        animate x { duration: Theme.fast; easing: ease-out; }
+    }
+}
+
+// A check box with its words beside it.
+export component CheckBox inherits HorizontalLayout {
+    in-out property <bool> checked;
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    spacing: 10px;
+    alignment: start;
+    box := Rectangle {
+        width: 18px;
+        height: 18px;
+        y: (parent.height - self.height) / 2;
+        border-radius: Theme.radius-xs;
+        background: root.checked ? Theme.amber : Theme.ink-deep;
+        border-width: root.checked ? 0 : 1.5px;
+        border-color: Theme.dim;
+        if root.checked: Icon {
+            commands: "M5 12.5l4.5 4.5L19 7.5";
+            colour: Theme.on-amber;
+            size: 14px;
+        }
+    }
+    if root.text != "": Text {
+        text: root.text;
+        color: Theme.text;
+        font-size: Theme.size-body;
+        vertical-alignment: center;
+    }
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export enum Tone { ok, warn, info, err, plain }
+
+// A pill: a status, a tag, a count, on the darkest fill.
+export component Badge inherits Rectangle {
+    in property <string> text;
+    in property <Tone> tone: plain;
+    property <color> ink: tone == Tone.ok ? Theme.ok : tone == Tone.warn ? Theme.warn : tone == Tone.err ? Theme.err : tone == Tone.info ? Theme.lav : Theme.soft;
+    background: tone == Tone.err ? Theme.err.with-alpha(0.16) : Theme.ink-deep;
+    border-radius: Theme.radius-xs;
+    horizontal-stretch: 0;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+        Text {
+            text: root.text;
+            color: root.ink;
+            font-size: Theme.size-tiny;
+            font-weight: 600;
+        }
+    }
+}
+
+// A dot and words: a game's state in a list.
+export component Status inherits HorizontalLayout {
+    in property <string> text;
+    in property <Tone> tone: plain;
+    spacing: 6px;
+    alignment: start;
+    Rectangle {
+        width: 7px;
+        height: 7px;
+        y: (parent.height - self.height) / 2;
+        border-radius: 3.5px;
+        background: root.tone == Tone.ok ? Theme.ok : root.tone == Tone.warn ? Theme.warn : root.tone == Tone.err ? Theme.err : Theme.dim;
+    }
+    Text {
+        text: root.text;
+        color: root.tone == Tone.ok ? Theme.ok : root.tone == Tone.warn ? Theme.warn : Theme.dim;
+        font-size: Theme.size-small;
+        overflow: elide;
+    }
+}
+
+// A card or panel: a flat fill, no edge.
+export component Card inherits Rectangle {
+    in property <bool> hint: false;
+    background: hint ? Theme.panel.mix(Theme.amber, 0.91) : Theme.panel;
+    border-radius: Theme.radius;
+}
+
+// A one-line text field: a fill, a gold ring inside it when focused.
+export component Field inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> on-card: true;
+    in property <bool> enabled: true;
+    in property <bool> read-only: false;
+    in property <bool> password: false;
+    out property <bool> has-focus: input.has-focus;
+    callback edited(string);
+    callback accepted(string);
+    min-height: Theme.target;
+    horizontal-stretch: 1;
+    border-radius: Theme.radius-sm;
+    background: on-card ? Theme.control-card : Theme.control;
+    border-width: input.has-focus ? 2px : 0px;
+    border-color: Theme.amber;
+    opacity: enabled ? 1 : 0.6;
+    forward-focus: input;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        Rectangle {
+            clip: true;
+            if root.text == "" && !input.has-focus: Text {
+                x: 0;
+                width: parent.width;
+                text: root.placeholder;
+                color: Theme.dim;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            input := TextInput {
+                x: 0;
+                width: max(parent.width, self.preferred-width);
+                text <=> root.text;
+                enabled: root.enabled;
+                read-only: root.read-only;
+                input-type: root.password ? InputType.password : InputType.text;
+                color: Theme.text;
+                selection-background-color: Theme.amber.with-alpha(0.38);
+                selection-foreground-color: Theme.text;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+                single-line: true;
+                edited => { root.edited(self.text); }
+                accepted => { root.accepted(self.text); }
+            }
+        }
+    }
+}
+
+// A turning ring: something is on its way.
+export component Spinner inherits Rectangle {
+    in property <length> size: 28px;
+    in property <color> colour: Theme.amber;
+    width: size;
+    height: size;
+    Path {
+        width: root.size;
+        height: root.size;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: "M12 3a9 9 0 0 1 9 9";
+        stroke: root.colour;
+        stroke-width: root.size / 24 * 2.4;
+        stroke-line-cap: round;
+        transform-rotation: 360deg * mod(animation-tick(), 900ms) / 900ms;
+    }
+}
+
+// A bar that fills: a job's progress. Without a known share it pulses.
+export component ProgressBar inherits Rectangle {
+    // 0 to 100, or below 0 when unknown.
+    in property <float> percent: -1;
+    height: 6px;
+    border-radius: 3px;
+    background: Theme.ink-deep;
+    clip: true;
+    Rectangle {
+        x: root.percent < 0 ? (root.width * 1.3) * mod(animation-tick(), 1400ms) / 1400ms - root.width * 0.3 : 0px;
+        width: root.percent < 0 ? root.width * 0.3 : root.width * clamp(root.percent, 0, 100) / 100;
+        height: parent.height;
+        border-radius: 3px;
+        background: Theme.amber;
+        animate width { duration: Theme.medium; easing: ease-out; }
+    }
+}
+
+// Lines between rows.
+export component Rule inherits Rectangle {
+    height: 1px;
+    background: Theme.line;
+}

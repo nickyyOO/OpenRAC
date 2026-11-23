@@ -1,9 +1,9 @@
 //! The launcher's colours for the game: the theme picked in Settings and the picked game's light,
 //! as the launcher wears them, handed to the game's options drawer, so that it looks
 //! like the launcher it was started from (port/game/common/ui_colors.h). The colours
-//! are src/lib/palettes.json's, the file the launcher's pages read.
+//! are palettes.json's, which the launcher's window wears too ([`colors`]).
 
-const PALETTES: &str = include_str!("../../src/lib/palettes.json");
+const PALETTES: &str = include_str!("../palettes.json");
 
 /// The colours the game's menu (its drawer, its bar of tabs) draws with, by their app.css names.
 const DRAWER: &[&str] = &[
@@ -39,6 +39,16 @@ pub const ENV: &str = "OPENRAC_UI_COLORS";
 /// `game`: only its light, or with `game_colors` its own bar, gold and, on the launcher's own theme,
 /// its coal too.
 pub fn ui_colors(theme: &str, game: Option<&str>, game_colors: bool) -> String {
+    colors(theme, game, game_colors, DRAWER)
+        .into_iter()
+        .map(|(token, value)| format!("{}={value}", token.trim_start_matches('-')))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// The colours of `tokens` (app.css names, `--panel`) for theme `theme` and the accent of `game`, as
+/// [`ui_colors`] picks them, each `#rrggbb[aa]`. A token no palette sets is left out.
+pub fn colors<'a>(theme: &str, game: Option<&str>, game_colors: bool, tokens: &[&'a str]) -> Vec<(&'a str, String)> {
     let data: serde_json::Value = serde_json::from_str(PALETTES).unwrap_or_default();
     let palette =
         data["palettes"].as_array().and_then(|all| all.iter().find(|p| p["id"] == theme)).map(|p| &p["colors"]);
@@ -46,7 +56,7 @@ pub fn ui_colors(theme: &str, game: Option<&str>, game_colors: bool) -> String {
     let own_theme = palette.is_none_or(|colors| colors.as_object().is_none_or(|c| c.is_empty()));
     let accent = game.map(|game| &data["accents"][game]);
     let colors = game.filter(|_| game_colors).map(|game| &data["game_colors"][game]);
-    DRAWER
+    tokens
         .iter()
         .filter_map(|token| {
             let tint = format!("--tint-{}", token.trim_start_matches('-'));
@@ -57,10 +67,34 @@ pub fn ui_colors(theme: &str, game: Option<&str>, game_colors: bool) -> String {
                     .flatten()
                     .find_map(|colors| colors[*token].as_str())
             })?;
-            Some(format!("{}={}", token.trim_start_matches('-'), hex(value)?))
+            Some((*token, hex(value)?))
         })
-        .collect::<Vec<_>>()
-        .join(",")
+        .collect()
+}
+
+/// A theme of Settings: its id, its name and what Settings shows of it (the page, a panel, the text).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Palette {
+    pub id: String,
+    pub name: String,
+    pub swatch: [String; 3],
+}
+
+/// The themes, the launcher's own first.
+pub fn palettes() -> Vec<Palette> {
+    let data: serde_json::Value = serde_json::from_str(PALETTES).unwrap_or_default();
+    let all = data["palettes"].as_array().cloned().unwrap_or_default();
+    all.iter()
+        .filter_map(|p| {
+            let swatch = p["swatch"].as_array()?;
+            let at = |i: usize| swatch.get(i).and_then(|v| v.as_str()).map(str::to_string);
+            Some(Palette {
+                id: p["id"].as_str()?.to_string(),
+                name: p["name"].as_str()?.to_string(),
+                swatch: [at(0)?, at(1)?, at(2)?],
+            })
+        })
+        .collect()
 }
 
 /// A CSS colour as palettes.json writes them, `#rrggbb` or `rgb(r g b / a)`, as `#rrggbb[aa]`.

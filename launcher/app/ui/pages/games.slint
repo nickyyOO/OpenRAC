@@ -1,0 +1,23 @@
+// The Games tab: the game list beside the picked game's page.
+
+import { Theme } from "../theme.slint";
+import { SideEntry } from "../state.slint";
+import { SideList } from "../shell/side-list.slint";
+import { Placeholder } from "placeholder.slint";
+
+export global Games {
+    in property <[SideEntry]> entries;
+    // The picked game's version (`rac1/pal`).
+    in property <string> selected;
+    callback pick(string);
+}
+
+export component GamesPage inherits HorizontalLayout {
+    SideList {
+        entries: Games.entries;
+        selected: Games.selected;
+        label: "Your games";
+        picked(key) => { Games.pick(key); }
+    }
+    Placeholder { title: "Game"; }
+}

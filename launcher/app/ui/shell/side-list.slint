@@ -1,0 +1,111 @@
+// The list beside the Games, Mods and Develop tabs: one entry per place, all the same size, the
+// open one marked. Each is a disc (a game's print) or an icon, a name and a line on where it stands.
+
+import { Theme } from "../theme.slint";
+import { SideEntry } from "../state.slint";
+import { Icon } from "../widgets/icon.slint";
+import { Status } from "../widgets/controls.slint";
+
+component Entry inherits Rectangle {
+    in property <SideEntry> entry;
+    in property <bool> on;
+    callback picked();
+    height: 70px;
+    border-radius: Theme.radius;
+    background: on ? Theme.amber.with-alpha(0.12) : area.has-hover ? Theme.control : transparent;
+    animate background { duration: Theme.fast; }
+    accessible-role: list-item;
+    accessible-label: entry.name;
+    accessible-item-selected: on;
+    accessible-action-default => { picked(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.picked(); }
+    }
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 10px;
+        spacing: 12px;
+        Rectangle {
+            width: 58px;
+            height: 58px;
+            y: (parent.height - self.height) / 2;
+            if root.entry.icon == "": Image {
+                width: 58px;
+                height: 58px;
+                source: root.entry.disc;
+                image-fit: contain;
+            }
+            if root.entry.icon != "": Rectangle {
+                border-radius: 29px;
+                background: Theme.control;
+                Icon {
+                    commands: root.entry.icon;
+                    colour: Theme.amber;
+                    size: 24px;
+                }
+            }
+            // A crash not seen yet.
+            if root.entry.mark: Rectangle {
+                x: parent.width - 14px;
+                y: parent.height - 14px;
+                width: 11px;
+                height: 11px;
+                border-radius: 5.5px;
+                background: Theme.err;
+                border-width: 2px;
+                border-color: Theme.rail;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text {
+                text: root.entry.name;
+                color: root.on ? Theme.amber : Theme.text;
+                font-size: 13.5px;
+                font-weight: 600;
+                wrap: word-wrap;
+            }
+            if root.entry.state != "": Status {
+                text: root.entry.state;
+                tone: root.entry.tone;
+            }
+        }
+    }
+}
+
+export component SideList inherits Rectangle {
+    in property <[SideEntry]> entries;
+    in property <string> selected;
+    in property <string> label;
+    callback picked(string);
+    width: 250px;
+    background: Theme.rail;
+    accessible-role: list;
+    accessible-label: label;
+    Flickable {
+        VerticalLayout {
+            padding: 10px;
+            padding-top: 20px;
+            spacing: 2px;
+            alignment: start;
+            for e in root.entries: VerticalLayout {
+                if e.group != "": Text {
+                    text: e.group;
+                    color: Theme.brand;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.6px;
+                    height: 30px;
+                    vertical-alignment: bottom;
+                }
+                Entry {
+                    entry: e;
+                    on: e.key == root.selected;
+                    picked => { root.picked(e.key); }
+                }
+            }
+        }
+    }
+}

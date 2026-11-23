@@ -1,0 +1,18 @@
+// A page still on its way.
+
+import { Theme } from "../theme.slint";
+
+export component Placeholder inherits Rectangle {
+    in property <string> title;
+    VerticalLayout {
+        padding: 40px;
+        alignment: start;
+        Text {
+            text: root.title;
+            font-family: Theme.head;
+            font-weight: 700;
+            font-size: Theme.size-h1;
+            color: Theme.gold;
+        }
+    }
+}
