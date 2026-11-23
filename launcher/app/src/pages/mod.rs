@@ -3,3 +3,4 @@
 pub mod game;
 pub mod help;
 pub mod saves;
+pub mod stopped;

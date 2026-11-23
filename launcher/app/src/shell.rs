@@ -12,6 +12,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
 use crate::pages::saves::{self, SavesState};
+use crate::pages::stopped::{self, StoppedState};
 use crate::toasts::Toasts;
 use crate::{art, theme, App, AppWindow, Games, Page, SideEntry, Tone};
 
@@ -24,6 +25,7 @@ pub struct Shell {
     pub game: GameState,
     pub help: HelpState,
     pub saves: SavesState,
+    pub stopped: StoppedState,
 }
 
 thread_local! {
@@ -48,6 +50,7 @@ pub fn install(window: &AppWindow) {
         game: GameState::default(),
         help: HelpState::default(),
         saves: SavesState::default(),
+        stopped: StoppedState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -65,6 +68,7 @@ pub fn install(window: &AppWindow) {
     game::install(window);
     help::install(window);
     saves::install(window);
+    stopped::install(window);
 }
 
 impl Shell {
@@ -95,7 +99,13 @@ impl Shell {
             Change::Config => self.config_changed(),
             Change::Library => self.library_changed(),
             Change::Jobs => self.jobs_changed(),
-            Change::Stopped | Change::GameData => {
+            Change::Stopped => {
+                self.show_stopped();
+                self.read_stopped();
+                self.read_game_details();
+                self.read_card();
+            }
+            Change::GameData => {
                 self.read_game_details();
                 self.read_card();
             }
@@ -191,6 +201,7 @@ impl Shell {
         games_ui.set_entries(ModelRc::new(VecModel::from(entries)));
         self.show_game();
         self.show_help();
+        self.show_stopped();
     }
 
     /// The picked game's page, as the launcher knows it now.
@@ -204,6 +215,16 @@ impl Shell {
     pub fn read_card(&self) {
         let (Some(launcher), Some(serial)) = (self.launcher(), saves::shown_serial(self)) else { return };
         self.saves.read(launcher, serial);
+    }
+
+    pub fn show_stopped(&self) {
+        self.stopped.show(self);
+    }
+
+    fn read_stopped(&self) {
+        if let Some(launcher) = self.launcher() {
+            self.stopped.read(launcher);
+        }
     }
 
     pub fn show_help(&self) {

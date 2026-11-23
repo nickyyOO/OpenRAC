@@ -9,6 +9,7 @@ import { Menu, MenuItem } from "../widgets/menu.slint";
 import { Scroll } from "../widgets/scroll.slint";
 import { Help, HelpBlock } from "help.slint";
 import { SavesBlock } from "saves.slint";
+import { Stopped, StoppedNotice } from "stopped.slint";
 
 // The main button.
 export struct PlayerButton {
@@ -505,6 +506,7 @@ export component GameView inherits Rectangle {
                     color: Theme.soft;
                 }
                 for n in GamePage.notices: Notice { notice: n; }
+                if Stopped.shown: StoppedNotice { }
                 if GamePage.found: Hero { }
                 if GamePage.developer: HorizontalLayout {
                     spacing: 6px;

@@ -1,0 +1,235 @@
+// The game stopped unexpectedly: what happened in plain words, one obvious next step (copy the
+// report) and where to send it (Discord). Saving it as a file, the folder, GitHub and the port's
+// own words wait under More. Once the game has run to its end since, the notice is a line.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, Rule, Spinner } from "../widgets/controls.slint";
+
+// A mod update that came before the crash: rolled back with one press.
+export struct RollBack {
+    id: string,
+    // "Roll back Lock-strafe to 1.0.0".
+    label: string,
+}
+
+export global Stopped {
+    in property <bool> shown;
+    // Played to the end since: one line.
+    in property <bool> short;
+    in property <bool> crash;
+    // "The game crashed", "The game was closed", "The game stopped".
+    in property <string> heading;
+    // The line, or the paragraph, in plain words.
+    in property <string> say;
+    in property <string> mods-line;
+    in property <string> update-line;
+    in property <[RollBack]> roll-backs;
+    in property <bool> copied;
+    in property <bool> saving;
+    in property <string> saved-to;
+    // Under More: the port's own words.
+    in property <string> fact-name;
+    in property <string> fact;
+    in property <string> report;
+    in property <string> when;
+    in property <string> tail;
+    in-out property <bool> more;
+
+    callback copy();
+    callback save();
+    callback dismiss();
+    callback open-folder();
+    callback open-discord();
+    callback open-issues();
+    callback roll-back(string);
+}
+
+component Fact inherits VerticalLayout {
+    in property <string> name;
+    in property <string> value;
+    in property <bool> mono;
+    spacing: 2px;
+    Text { text: root.name; color: Theme.dim; font-size: 12px; }
+    Text {
+        text: root.value;
+        color: Theme.body;
+        font-size: 13px;
+        font-family: root.mono ? "monospace" : Theme.sans;
+        wrap: word-wrap;
+    }
+}
+
+export component StoppedNotice inherits Card {
+    background: Stopped.crash ? Theme.panel.mix(Theme.err, 0.9) : Theme.panel;
+
+    if Stopped.short: HorizontalLayout {
+        padding: 14px;
+        padding-left: 18px;
+        spacing: 12px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: Stopped.crash ? Icons.warn : Icons.info;
+            colour: Stopped.crash ? Theme.err : Theme.soft;
+            size: 18px;
+        }
+        Text {
+            text: Stopped.say;
+            color: Theme.text;
+            wrap: word-wrap;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: Stopped.copied ? "Copied" : Stopped.crash ? "Copy report" : "Copy the log";
+                icon: Stopped.copied ? Icons.check : Icons.copy;
+                compact: true;
+                on-card: true;
+                clicked => { Stopped.copy(); }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button { text: "Dismiss"; icon: Icons.x; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Stopped.dismiss(); } }
+        }
+    }
+
+    if !Stopped.short: VerticalLayout {
+        padding: 22px;
+        spacing: 12px;
+        HorizontalLayout {
+            spacing: 12px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                commands: Stopped.crash ? Icons.warn : Icons.info;
+                colour: Stopped.crash ? Theme.err : Theme.soft;
+                size: 22px;
+            }
+            Text {
+                text: Stopped.heading;
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Stopped.crash ? Theme.err : Theme.gold;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            VerticalLayout {
+                alignment: center;
+                Button {
+                    text: "Dismiss";
+                    icon: Icons.x;
+                    kind: ButtonKind.quiet;
+                    compact: true;
+                    on-card: true;
+                    accessible-label: "Dismiss: hide this until the game crashes again";
+                    clicked => { Stopped.dismiss(); }
+                }
+            }
+        }
+        Text { text: Stopped.say; color: Theme.body; wrap: word-wrap; }
+        if Stopped.mods-line != "": Text { text: Stopped.mods-line; color: Theme.body; wrap: word-wrap; }
+        if Stopped.update-line != "": Text { text: Stopped.update-line; color: Theme.body; wrap: word-wrap; }
+        if Stopped.roll-backs.length > 0: HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            for r in Stopped.roll-backs: Button {
+                text: r.label;
+                icon: Icons.reset;
+                on-card: true;
+                clicked => { Stopped.roll-back(r.id); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            Button {
+                text: Stopped.copied ? "Copied" : Stopped.crash ? "Copy report" : "Copy the log";
+                icon: Stopped.copied ? Icons.check : Icons.copy;
+                kind: Stopped.crash ? ButtonKind.primary : ButtonKind.plain;
+                on-card: true;
+                clicked => { Stopped.copy(); }
+            }
+            if Stopped.crash: Button {
+                text: "Open Discord";
+                icon: Icons.external;
+                kind: ButtonKind.quiet;
+                on-card: true;
+                clicked => { Stopped.open-discord(); }
+            }
+            if Stopped.copied: Text {
+                text: "Paste it in your message.";
+                color: Theme.ok;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+        }
+
+        // More: the rest of the ways to send it, and the port's own words.
+        Rectangle {
+            more-area := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { Stopped.more = !Stopped.more; }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: Stopped.more ? Icons.down : Icons.next;
+                    colour: Theme.lav;
+                    size: 12px;
+                }
+                Text {
+                    text: "More";
+                    color: more-area.has-hover ? Theme.text : Theme.lav;
+                    font-weight: 600;
+                    font-size: 14px;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        if Stopped.more: VerticalLayout {
+            spacing: 12px;
+            padding-left: 18px;
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                Button {
+                    text: "Save report as a file";
+                    icon: Icons.save;
+                    compact: true;
+                    on-card: true;
+                    enabled: !Stopped.saving;
+                    clicked => { Stopped.save(); }
+                }
+                Button { text: "Open folder"; icon: Icons.folder; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Stopped.open-folder(); } }
+                Button { text: "Open a GitHub issue"; icon: Icons.external; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Stopped.open-issues(); } }
+            }
+            if Stopped.saved-to != "": Text {
+                text: "Saved as " + Stopped.saved-to + ". Attach this file to your message.";
+                color: Theme.ok;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            Fact { name: Stopped.fact-name; value: Stopped.fact; mono: Stopped.crash; }
+            if Stopped.report != "": Fact { name: "Report"; value: Stopped.report; mono: true; }
+            Fact { name: "When"; value: Stopped.when; }
+            if Stopped.tail != "": Rectangle {
+                border-radius: Theme.radius-xs;
+                background: Theme.ink-deep;
+                VerticalLayout {
+                    padding: 10px;
+                    Text {
+                        text: Stopped.tail;
+                        color: Theme.soft;
+                        font-family: "monospace";
+                        font-size: 11.5px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}

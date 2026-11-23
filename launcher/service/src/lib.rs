@@ -15,6 +15,7 @@ mod progress;
 mod queue;
 mod reports;
 mod saves;
+mod stopped;
 mod tasks;
 
 pub use failure::{bake_failure, has_path, hide_paths, tool_failure, BakeFailure, NextStep, ToolError, ToolFailure};
@@ -28,6 +29,7 @@ pub use player::{
 pub use progress::{is_play, phase_label, read_progress, summarize, tail_lines, JobSummary, Pace, Progress};
 pub use queue::{Job, JobState, Line};
 pub use saves::{backup_label, empty_slots, Card};
+pub use stopped::{crash_after_update, crash_mods_line, stop_text, StoppedMods};
 
 /// The domain crate, for the window's own reads (the library's types, the settings).
 pub use openrac_launcher_core as core;
