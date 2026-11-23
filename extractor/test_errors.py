@@ -1,4 +1,4 @@
-"""errors.py: every way a tool stops says a code the launcher maps (launcher/src/lib/toolErrors.ts)."""
+"""errors.py: every way a tool stops says a code the launcher maps (launcher/service/src/failure.rs)."""
 
 import errno
 import re
@@ -12,7 +12,7 @@ import errors
 from formats import FormatError
 
 HERE = Path(__file__).resolve().parent
-MAPPING = HERE.parent / "launcher" / "src" / "lib" / "toolErrors.ts"
+MAPPING = HERE.parent / "launcher" / "service" / "src" / "failure.rs"
 
 
 def raised_codes() -> set[str]:
@@ -41,7 +41,7 @@ class Codes(unittest.TestCase):
 
     def test_every_code_the_tools_raise_is_mapped_by_the_launcher(self):
         mapping = MAPPING.read_text()
-        known = set(re.findall(r'^\s*"?([a-z0-9-]+)"?:\s*\{', mapping, re.M))
+        known = set(re.findall(r'^\s*"([a-z0-9-]+)" => ', mapping, re.M))
         missing = sorted(raised_codes() - known)
         self.assertEqual(missing, [], f"add these codes to {MAPPING.name}")
 

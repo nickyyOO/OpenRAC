@@ -1,0 +1,15 @@
+[package]
+name = "openrac-launcher-service"
+description = "The launcher's behaviour without a window: start-up, settings, the job queue, the game's next step"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+openrac-launcher-core = { path = "../core" }
+# The per-user folders the launcher has always kept its settings and data in (paths.rs).
+dirs = "6.0.0"
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"
