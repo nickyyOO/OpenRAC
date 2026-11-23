@@ -3,7 +3,9 @@
 //! and a desktop window are both a [`Host`] to it.
 
 mod failure;
+mod game;
 mod host;
+pub mod labels;
 mod launcher;
 mod mods;
 mod paths;
@@ -18,10 +20,10 @@ pub use host::{Change, Host, Notice, NoticeKind};
 pub use launcher::{bundled_copy, game_data, Crashes, Launcher, Start, Stopped, View};
 pub use paths::Paths;
 pub use player::{
-    found_disc, has_port, is_built, is_playing, missing_program, play_warning, player_state, player_version,
-    rebuild_steps, update_step, Icon, PlayerKind, PlayerState, Situation, Tone, UpdateStep,
+    action, failed_step, found_disc, has_port, is_built, is_playing, missing_program, play_warning, player_state,
+    player_version, rebuild_steps, update_step, Icon, PlayerKind, PlayerState, Situation, Tone, UpdateStep,
 };
-pub use progress::{is_play, phase_label, read_progress, Progress};
+pub use progress::{is_play, phase_label, read_progress, summarize, tail_lines, JobSummary, Pace, Progress};
 pub use queue::{Job, JobState, Line};
 
 /// The domain crate, for the window's own reads (the library's types, the settings).

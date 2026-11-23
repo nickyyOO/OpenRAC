@@ -3154,6 +3154,7 @@ name = "openrac-launcher"
 version = "1.1.1"
 dependencies = [
  "arboard",
+ "chrono",
  "image",
  "open",
  "openrac-launcher-service",

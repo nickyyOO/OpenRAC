@@ -1,7 +1,7 @@
 //! The window as the service's [`Host`]: what changed goes to the window's thread, and the
 //! questions only a person can answer are asked there.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use openrac_launcher_service::{Change, Host, Notice};
@@ -37,5 +37,25 @@ impl Host for WindowHost {
 
     fn pick_folder(&self, title: &str) -> Option<PathBuf> {
         crate::dialogs::pick_folder(title)
+    }
+
+    fn pick_file(&self, title: &str, kind: &str, extensions: &[&str], start: Option<&Path>) -> Option<PathBuf> {
+        crate::dialogs::pick_file_in(title, kind, extensions, start)
+    }
+
+    fn save_file(&self, title: &str, name: &str) -> Option<PathBuf> {
+        crate::dialogs::save_file(title, name)
+    }
+
+    fn open_path(&self, path: &Path) -> Result<(), String> {
+        crate::system::open_path(path)
+    }
+
+    fn open_url(&self, url: &str) -> Result<(), String> {
+        crate::system::open_url(url)
+    }
+
+    fn copy(&self, text: &str) {
+        crate::system::copy(text);
     }
 }

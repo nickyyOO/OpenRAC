@@ -1,0 +1,35 @@
+// A page that scrolls down, never sideways, with a thin bar while there is more than fits.
+
+import { Theme } from "../theme.slint";
+
+export component Scroll inherits Rectangle {
+    // The page has scrolled from its top (the header's haze shows then).
+    out property <bool> scrolled: flick.content-y < -1px;
+    in-out property <length> top <=> flick.content-y;
+    flick := Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-width: self.width;
+        @children
+    }
+    // The bar.
+    if flick.content-height > flick.height: Rectangle {
+        x: parent.width - 8px;
+        width: 5px;
+        height: max(32px, flick.height * flick.height / flick.content-height);
+        y: (flick.height - self.height) * (-flick.content-y / (flick.content-height - flick.height));
+        border-radius: 2.5px;
+        background: bar-area.has-hover || bar-area.pressed ? Theme.line-strong.with-alpha(0.5) : Theme.line-strong;
+        bar-area := TouchArea {
+            property <length> from;
+            pointer-event(e) => {
+                if e.kind == PointerEventKind.down { self.from = flick.content-y; }
+            }
+            moved => {
+                if self.pressed {
+                    flick.content-y = clamp(self.from - (self.mouse-y - self.pressed-y) * flick.content-height / flick.height, flick.height - flick.content-height, 0px);
+                }
+            }
+        }
+    }
+}

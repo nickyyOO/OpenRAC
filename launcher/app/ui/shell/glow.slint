@@ -14,9 +14,11 @@ component Light inherits Rectangle {
     height: wide;
     x: (across - self.width) / 2;
     y: -self.height / 2;
-    transform-scale-y: tall / wide;
-    transform-origin: { x: self.width / 2, y: self.height / 2 };
-    background: @radial-gradient(circle, Theme.glow.with-alpha(strength) 0%, Theme.glow.with-alpha(strength * 0.4) reach * 0.6, Theme.glow.with-alpha(0) reach);
+    Rectangle {
+        transform-scale-y: root.tall / root.wide;
+        transform-origin: { x: self.width / 2, y: self.height / 2 };
+        background: @radial-gradient(circle, Theme.glow.with-alpha(root.strength) 0%, Theme.glow.with-alpha(root.strength * 0.4) root.reach * 0.6, Theme.glow.with-alpha(0) root.reach);
+    }
 }
 
 export component Glow inherits Rectangle {

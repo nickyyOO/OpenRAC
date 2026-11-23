@@ -20,6 +20,8 @@ serde_json.workspace = true
 slint = { version = "1.19.0", default-features = false, features = ["std", "compat-1-2", "renderer-femtovg", "renderer-software"] }
 # The games' pictures are WebP, decoded once when first shown (art.rs).
 image = { version = "0.25.10", default-features = false, features = ["webp"] }
+# "Last played today at 17:01": the player's own time zone.
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 slint = { version = "1.19.0", default-features = false, features = ["backend-winit"] }

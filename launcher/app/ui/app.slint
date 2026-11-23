@@ -9,9 +9,12 @@ import { Toasts } from "shell/toasts.slint";
 import { Ask } from "shell/ask.slint";
 import { Button, ButtonKind, Spinner } from "widgets/controls.slint";
 import { Games, GamesPage } from "pages/games.slint";
+import { Ambient, GamePage, PlayerButton, JobStrip, Steps, GameNotice } from "pages/game.slint";
+import { MenuItem } from "widgets/menu.slint";
+import { Icons } from "widgets/icon.slint";
 import { Placeholder } from "pages/placeholder.slint";
 
-export { Theme, App, Page, SideEntry, Toast, Links, Games }
+export { Theme, App, Page, SideEntry, Toast, Links, Games, GamePage, PlayerButton, JobStrip, Steps, GameNotice, MenuItem, Icons }
 
 export component AppWindow inherits Window {
     title: "OpenRAC Launcher";
@@ -23,6 +26,7 @@ export component AppWindow inherits Window {
     default-font-family: Theme.sans;
     default-font-size: Theme.size-body;
 
+    if App.ready && App.page == Page.games && GamePage.found: Ambient { y: 0; }
     Glow { }
 
     if !App.ready: VerticalLayout {

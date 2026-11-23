@@ -1,0 +1,521 @@
+// A game's page: one main button, always in the same place, says the next thing to do (set up
+// from your disc, build, play); what is done less often is in the menu beside it. Below: the
+// saves and, beside them, Help.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Badge, Button, ButtonKind, Card, ProgressBar, Spinner, Switch, Tone } from "../widgets/controls.slint";
+import { Menu, MenuItem } from "../widgets/menu.slint";
+import { Scroll } from "../widgets/scroll.slint";
+
+// The main button.
+export struct PlayerButton {
+    label: string,
+    // An icon's path (Icons.*).
+    icon: string,
+    primary: bool,
+    disabled: bool,
+    // A job runs: the button stops it, a spinner in place of the icon.
+    busy: bool,
+    // The line under it: what it will do, or why it cannot.
+    hint: string,
+}
+
+// What a running job is doing, in a strip across the band.
+export struct JobStrip {
+    shown: bool,
+    phase: string,
+    // "42 %", "Kerwan, 3 of 18", a note.
+    count: string,
+    // 0 to 100, or below 0 when unknown.
+    percent: float,
+    // The game itself has nothing to count: no bar.
+    bar: bool,
+    left: string,
+    // The last lines it printed, for Details.
+    tail: string,
+}
+
+// The steps towards playing, while one is left.
+export struct Steps {
+    shown: bool,
+    set-up: bool,
+    // Game built and Levels ready are listed.
+    built-shown: bool,
+    built: bool,
+    levels-shown: bool,
+    levels: bool,
+}
+
+export struct GameNotice {
+    text: string,
+    // The notice's button, or "" for none.
+    button: string,
+    id: string,
+}
+
+export global GamePage {
+    in property <bool> found: false;
+    in property <string> key;
+    in property <string> series;
+    in property <string> name;
+    in property <string> year;
+    in property <image> picture;
+    // The band's gradient, top to bottom, and the title's typeface.
+    in property <color> from: #2c2a26;
+    in property <color> to: #191919;
+    in property <string> title-font: "Orbitron";
+    in property <int> title-weight: 600;
+
+    in property <PlayerButton> button;
+    in property <[MenuItem]> menu;
+    // The Mods switch under Play, while Play would start the game.
+    in property <bool> mods-shown;
+    in property <bool> mods-on;
+    in property <string> mods-count;
+    in property <bool> mods-enabled: true;
+    in property <string> last-played;
+    // The last step that stopped with an error: what stopped.
+    in property <string> stopped;
+    in property <JobStrip> job;
+    in property <Steps> steps;
+
+    // Above the band: no actions, a warning before Play, an update ready.
+    in property <[GameNotice]> notices;
+    // Developer tools: the version's facts as chips.
+    in property <bool> developer;
+    in property <[string]> chips;
+    // A game without a port yet: how far it is.
+    in property <bool> coming;
+    in property <string> coming-text;
+    in property <float> coming-percent: -1;
+
+    callback act();
+    callback menu-chosen(string);
+    callback set-mods(bool);
+    callback open-mods();
+    callback see-output();
+    callback notice-chosen(string);
+    callback open-develop();
+    callback follow-progress();
+}
+
+component TitleBox inherits Rectangle {
+    background: Theme.panel.with-alpha(0.92);
+    drop-shadow-blur: 24px;
+    drop-shadow-offset-y: 8px;
+    drop-shadow-color: #00000059;
+    horizontal-stretch: 0;
+    VerticalLayout {
+        padding-left: 24px;
+        padding-right: 24px;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        spacing: 2px;
+        Text {
+            text: GamePage.series;
+            font-family: GamePage.title-font;
+            font-weight: GamePage.title-weight;
+            font-size: 32px;
+            color: Theme.gold;
+        }
+        if GamePage.name != "": Text {
+            text: GamePage.name;
+            font-family: GamePage.title-font;
+            font-weight: GamePage.title-weight;
+            font-size: 32px;
+            color: Theme.gold;
+        }
+        if GamePage.year != "": Text {
+            text: GamePage.year;
+            font-family: GamePage.title-font;
+            font-size: 12.5px;
+            letter-spacing: 0.6px;
+            color: Theme.amber;
+        }
+    }
+}
+
+// The Mods switch: whether Play brings the mods, and how many.
+component ModsPill inherits Rectangle {
+    border-radius: Theme.radius-sm;
+    background: Theme.control;
+    horizontal-stretch: 0;
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 10px;
+        Text {
+            text: "Mods";
+            color: Theme.soft;
+            font-size: 13.5px;
+            vertical-alignment: center;
+        }
+        Switch {
+            y: (parent.height - self.height) / 2;
+            checked: GamePage.mods-on;
+            enabled: GamePage.mods-enabled;
+            label: "Play with mods";
+            toggled(on) => { GamePage.set-mods(on); }
+        }
+        if GamePage.mods-on: Text {
+            text: GamePage.mods-count + " ›";
+            color: Theme.amber;
+            font-size: 13.5px;
+            font-weight: 600;
+            vertical-alignment: center;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { GamePage.open-mods(); }
+            }
+        }
+        if !GamePage.mods-on: Text {
+            text: "disabled";
+            color: Theme.dim;
+            font-size: 13.5px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// What the job under the main button is doing: its step, a slim bar, and behind Details its last
+// lines.
+component JobProgress inherits Rectangle {
+    property <bool> open: false;
+    border-radius: Theme.radius-sm;
+    background: Theme.ink-deep.with-alpha(0.7);
+    VerticalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
+            Text {
+                text: GamePage.job.phase;
+                color: Theme.text;
+                font-size: 13.5px;
+                font-weight: 600;
+                horizontal-stretch: 1;
+                overflow: elide;
+            }
+            if GamePage.job.count != "": Text {
+                text: GamePage.job.count;
+                color: Theme.amber;
+                font-size: 13px;
+            }
+            if GamePage.job.left != "": Text {
+                text: GamePage.job.left;
+                color: Theme.soft;
+                font-size: 13px;
+            }
+            Text {
+                text: root.open ? "Hide" : "Details";
+                color: Theme.amber;
+                font-size: 13px;
+                font-weight: 600;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open = !root.open; }
+                }
+            }
+        }
+        if GamePage.job.bar: ProgressBar { percent: GamePage.job.percent; }
+        if root.open: Rectangle {
+            height: 160px;
+            border-radius: Theme.radius-xs;
+            background: Theme.ink-deep;
+            clip: true;
+            Flickable {
+                content-y: min(0px, self.height - tail.preferred-height - 20px);
+                VerticalLayout {
+                    padding: 10px;
+                    tail := Text {
+                        text: GamePage.job.tail;
+                        color: Theme.soft;
+                        font-family: "monospace";
+                        font-size: 11.5px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}
+
+component Step inherits HorizontalLayout {
+    in property <string> text;
+    in property <bool> done;
+    spacing: 7px;
+    Rectangle {
+        width: 14px;
+        height: 14px;
+        y: (parent.height - self.height) / 2;
+        border-radius: 7px;
+        background: root.done ? Theme.ok : Theme.amber.with-alpha(0.14);
+        if root.done: Icon {
+            commands: "M5 12.5l4.5 4.5L19 7.5";
+            colour: Theme.ink-deep;
+            size: 12px;
+        }
+    }
+    Text {
+        text: root.text;
+        color: root.done ? Theme.ok : Theme.amber;
+        font-size: 13px;
+        vertical-alignment: center;
+    }
+}
+
+// The band: the game's picture, its name, the main button and what goes with it.
+component Hero inherits Rectangle {
+    border-radius: Theme.radius;
+    clip: true;
+    background: @linear-gradient(160deg, GamePage.from 0%, GamePage.to 100%);
+    drop-shadow-blur: 36px;
+    drop-shadow-offset-y: 22px;
+    drop-shadow-color: #00000066;
+    min-height: 300px;
+    vertical-stretch: 0;
+    Image {
+        width: parent.width;
+        height: parent.height;
+        source: GamePage.picture;
+        image-fit: cover;
+        // Above the middle: the faces are in the picture's upper part.
+        vertical-alignment: top;
+        opacity: 0.6;
+    }
+    // The shade over the picture: darker at the foot and the edges.
+    Rectangle {
+        background: @linear-gradient(180deg, Theme.ink.with-alpha(0.3) 0%, Theme.ink.with-alpha(0.65) 100%);
+    }
+    Rectangle {
+        background: @radial-gradient(circle, transparent 35%, Theme.ink.with-alpha(0.55) 100%);
+    }
+    VerticalLayout {
+        padding: 28px;
+        padding-top: 24px;
+        spacing: 18px;
+        HorizontalLayout {
+            spacing: 24px;
+            VerticalLayout {
+                alignment: start;
+                padding-top: 60px;
+                TitleBox { }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            VerticalLayout {
+                spacing: 10px;
+                alignment: start;
+                width: 340px;
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: center;
+                    Button {
+                        least: 216px;
+                        big: true;
+                        text: GamePage.button.label;
+                        icon: GamePage.button.busy ? "" : GamePage.button.icon;
+                        kind: GamePage.button.primary ? ButtonKind.primary : ButtonKind.plain;
+                        enabled: !GamePage.button.disabled;
+                        clicked => { GamePage.act(); }
+                    }
+                    Menu {
+                        y: (parent.height - self.height) / 2;
+                        items: GamePage.menu;
+                        over-picture: true;
+                        chosen(id) => { GamePage.menu-chosen(id); }
+                    }
+                }
+                if GamePage.mods-shown: HorizontalLayout {
+                    alignment: center;
+                    ModsPill { }
+                }
+                if GamePage.button.hint != "" && !GamePage.button.busy: Text {
+                    text: GamePage.button.hint;
+                    color: Theme.amber;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                if GamePage.last-played != "": Text {
+                    text: GamePage.last-played;
+                    color: Theme.lav;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                if GamePage.stopped != "": HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.warn;
+                        colour: Theme.err;
+                        size: 14px;
+                    }
+                    Text {
+                        text: GamePage.stopped;
+                        color: Theme.err;
+                        font-size: 13px;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: "See what it printed";
+                        color: Theme.amber;
+                        font-size: 13px;
+                        font-weight: 600;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { GamePage.see-output(); }
+                        }
+                    }
+                }
+            }
+        }
+        if GamePage.job.shown: JobProgress { }
+        if GamePage.steps.shown: HorizontalLayout {
+            spacing: 22px;
+            alignment: start;
+            Step { text: "Disc set up"; done: GamePage.steps.set-up; }
+            if GamePage.steps.built-shown: Step { text: "Game built"; done: GamePage.steps.built; }
+            if GamePage.steps.levels-shown: Step { text: "Levels ready"; done: GamePage.steps.levels; }
+        }
+    }
+}
+
+component Notice inherits Card {
+    in property <GameNotice> notice;
+    HorizontalLayout {
+        padding: 16px;
+        padding-left: 20px;
+        spacing: 12px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: Icons.warn;
+            colour: Theme.amber;
+        }
+        Text {
+            text: root.notice.text;
+            color: Theme.text;
+            wrap: word-wrap;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+        if root.notice.button != "": Button {
+            text: root.notice.button;
+            kind: ButtonKind.primary;
+            clicked => { GamePage.notice-chosen(root.notice.id); }
+        }
+    }
+}
+
+// A game without a port yet: what is happening, how far it is, and where to follow it.
+component Coming inherits Card {
+    VerticalLayout {
+        padding: 22px;
+        spacing: 12px;
+        Text {
+            text: "Not playable yet";
+            font-family: Theme.head;
+            font-weight: 700;
+            font-size: Theme.size-h2;
+            color: Theme.gold;
+        }
+        Text {
+            text: GamePage.coming-text;
+            color: Theme.soft;
+            wrap: word-wrap;
+        }
+        if GamePage.coming-percent >= 0: HorizontalLayout {
+            spacing: 12px;
+            Text {
+                text: "Code rebuilt so far";
+                color: Theme.soft;
+                font-size: 13.5px;
+                horizontal-stretch: 1;
+                vertical-alignment: bottom;
+            }
+            Text {
+                text: round(GamePage.coming-percent * 10) / 10 + " %";
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: 18px;
+                color: Theme.gold;
+            }
+        }
+        if GamePage.coming-percent >= 0: ProgressBar { percent: GamePage.coming-percent; }
+        Text {
+            text: "Follow the progress on openrac.dev";
+            color: Theme.amber;
+            font-weight: 600;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { GamePage.follow-progress(); }
+            }
+        }
+    }
+}
+
+// The game's picture faintly behind the page's top, fading into the page. Drawn under the
+// window's glow, so the glow lies evenly over it.
+export component Ambient inherits Rectangle {
+    height: 580px;
+    Image {
+        width: parent.width;
+        height: parent.height;
+        source: GamePage.picture;
+        image-fit: cover;
+        opacity: 0.12;
+    }
+    Rectangle {
+        background: @linear-gradient(180deg, Theme.ink.with-alpha(0) 30%, Theme.ink 100%);
+    }
+}
+
+export component GameView inherits Rectangle {
+    // What goes under the band: the saves, Help, the shortcuts.
+    in property <length> page-max: 920px;
+    out property <bool> scrolled: scroll.scrolled;
+
+    scroll := Scroll {
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                width: min(root.width - 56px, root.page-max);
+                alignment: start;
+                padding-top: 20px;
+                padding-bottom: 60px;
+                spacing: 20px;
+                if !GamePage.found: Text {
+                    text: "That game is not in this OpenRAC folder.";
+                    color: Theme.soft;
+                }
+                for n in GamePage.notices: Notice { notice: n; }
+                if GamePage.found: Hero { }
+                if GamePage.developer: HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    for chip in GamePage.chips: Badge { text: chip; }
+                    Text {
+                        text: "Open in Develop ›";
+                        color: Theme.amber;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { GamePage.open-develop(); }
+                        }
+                    }
+                }
+                if GamePage.coming: Coming { }
+                @children
+            }
+        }
+    }
+}

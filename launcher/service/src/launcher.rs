@@ -300,7 +300,7 @@ impl Launcher {
         let (library, error) = match config.root.as_ref() {
             None => (None, Some("Choose your OpenRAC folder in Settings.".to_string())),
             Some(_) => match library::library(&config) {
-                Ok(library) => (Some(library), None),
+                Ok(library) => (Some(shown_titles(library)), None),
                 Err(e) => (None, Some(e)),
             },
         };
@@ -377,6 +377,17 @@ impl Launcher {
         let game = view.library.as_ref()?.games.iter().find(|g| g.id == game)?;
         crate::player::player_version(game, &view).map(|v| v.version.key.clone())
     }
+}
+
+/// The library with each game's and version's name as the launcher shows it.
+fn shown_titles(mut library: Library) -> Library {
+    for game in &mut library.games {
+        game.title = crate::labels::shown_title(&game.title).to_string();
+        for v in &mut game.versions {
+            v.version.title = crate::labels::shown_title(&v.version.title).to_string();
+        }
+    }
+    library
 }
 
 /// A game's data folder, where its logs and crash reports are.

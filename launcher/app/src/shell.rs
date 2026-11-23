@@ -9,6 +9,7 @@ use openrac_launcher_service::core::library::GameView;
 use openrac_launcher_service::{player_state, player_version, Change, Launcher, Notice, Situation, Tone as PlayerTone};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::pages::game::{self, GameState};
 use crate::toasts::Toasts;
 use crate::{art, theme, App, AppWindow, Games, Page, SideEntry, Tone};
 
@@ -18,6 +19,7 @@ pub struct Shell {
     toasts: Rc<Toasts>,
     /// The answer a question over the window waits for.
     asked: RefCell<Option<Sender<bool>>>,
+    pub game: GameState,
 }
 
 thread_local! {
@@ -39,21 +41,31 @@ pub fn install(window: &AppWindow) {
         launcher: OnceCell::new(),
         toasts: Rc::default(),
         asked: RefCell::default(),
+        game: GameState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
     app.set_version(env!("CARGO_PKG_VERSION").into());
     app.on_dismiss_toast(|id| with(|s| s.toasts.dismiss(&s.window, id)));
-    app.on_copy_text(|text| copy(&text));
+    app.on_copy_text(|text| crate::system::copy(&text));
     app.on_answer(|yes| with(|s| s.answer(yes)));
-    app.on_open_url(|url| open_url(&url));
+    app.on_open_url(|url| {
+        if let Err(e) = crate::system::open_url(&url) {
+            with(|s| s.notify(Notice::error(e)));
+        }
+    });
     app.on_open_page(|page| with(|s| s.open_page(page)));
     window.global::<Games>().on_pick(|key| with(|s| s.pick_version(&key)));
+    game::install(window);
 }
 
 impl Shell {
-    fn launcher(&self) -> Option<&Launcher> {
+    pub fn launcher(&self) -> Option<&Launcher> {
         self.launcher.get()
+    }
+
+    pub fn window(&self) -> &AppWindow {
+        &self.window
     }
 
     /// The service has started: the window shows the launcher.
@@ -62,6 +74,7 @@ impl Shell {
         let app = self.window.global::<App>();
         self.config_changed();
         self.library_changed();
+        self.read_game_details();
         app.set_ready(true);
     }
 
@@ -73,7 +86,7 @@ impl Shell {
             Change::Config => self.config_changed(),
             Change::Library => self.library_changed(),
             Change::Jobs => self.jobs_changed(),
-            Change::Stopped | Change::GameData => {}
+            Change::Stopped | Change::GameData => self.read_game_details(),
         }
     }
 
@@ -100,7 +113,7 @@ impl Shell {
         }
     }
 
-    fn open_page(&self, page: Page) {
+    pub fn open_page(&self, page: Page) {
         let app = self.window.global::<App>();
         // With developer tools on, what the launcher ran is Develop's console.
         let page = if page == Page::Activity && app.get_developer() { Page::Develop } else { page };
@@ -117,6 +130,8 @@ impl Shell {
         app.set_developer(config.developer);
         app.set_setup_complete(config.setup_complete);
         self.apply_theme();
+        self.show_game();
+        self.read_game_details();
     }
 
     fn apply_theme(&self) {
@@ -161,6 +176,21 @@ impl Shell {
             }
         }
         games_ui.set_entries(ModelRc::new(VecModel::from(entries)));
+        self.show_game();
+    }
+
+    /// The picked game's page, as the launcher knows it now.
+    pub fn show_game(&self) {
+        let Some(launcher) = self.launcher() else { return };
+        let key = self.window.global::<Games>().get_selected();
+        self.game.show(&self.window, launcher, &key);
+    }
+
+    /// What the game's page reads from files (mods on, last played), off the window's thread.
+    fn read_game_details(&self) {
+        let Some(launcher) = self.launcher() else { return };
+        let key = self.window.global::<Games>().get_selected();
+        self.game.read_details(launcher, &key);
     }
 
     fn jobs_changed(&self) {
@@ -175,6 +205,8 @@ impl Shell {
         self.window.global::<Games>().set_selected(key.into());
         self.apply_theme();
         self.follow_view();
+        self.show_game();
+        self.read_game_details();
     }
 
     /// The launcher hears which game's page is open (Discord, the stopped-game notice).
@@ -192,18 +224,5 @@ fn tone(tone: PlayerTone) -> Tone {
         PlayerTone::Ok => Tone::Ok,
         PlayerTone::Warn => Tone::Warn,
         PlayerTone::Info => Tone::Info,
-    }
-}
-
-/// Opens a web page in the browser: https only.
-fn open_url(url: &str) {
-    if url.starts_with("https://") {
-        let _ = open::that_detached(url);
-    }
-}
-
-fn copy(text: &str) {
-    if let Ok(mut clipboard) = arboard::Clipboard::new() {
-        let _ = clipboard.set_text(text.to_string());
     }
 }

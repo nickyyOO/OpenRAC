@@ -1,0 +1,69 @@
+//! Times and places in a player's words: "Today at 17:01", "on Batalia".
+
+use chrono::{DateTime, Datelike, Local, TimeZone};
+use openrac_launcher_service::core::reports::ReportEntry;
+
+/// Where a session was: "on Batalia", "in level 12", "in the menus".
+pub fn place(entry: &ReportEntry) -> String {
+    match (&entry.planet, entry.level) {
+        (Some(planet), _) => format!("on {planet}"),
+        (None, Some(level)) => format!("in level {level}"),
+        (None, None) => "in the menus".into(),
+    }
+}
+
+/// "Today at 17:01", "Yesterday at 9:05", "14 October at 10:00", with the year when it is not
+/// this one. `seconds`: since 1970.
+pub fn when(seconds: u64) -> String {
+    when_from(seconds, Local::now())
+}
+
+fn when_from<Tz: TimeZone>(seconds: u64, now: DateTime<Tz>) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let Some(then) = DateTime::from_timestamp(seconds as i64, 0) else { return String::new() };
+    let then = then.with_timezone(&now.timezone());
+    let time = then.format("%-H:%M");
+    let days = (now.date_naive() - then.date_naive()).num_days();
+    match days {
+        0 => format!("Today at {time}"),
+        1 => format!("Yesterday at {time}"),
+        _ if then.year() == now.year() => format!("{} at {time}", then.format("%-d %B")),
+        _ => format!("{} at {time}", then.format("%-d %B %Y")),
+    }
+}
+
+/// "Last played today at 17:01 on Batalia".
+pub fn last_played(entry: &ReportEntry) -> String {
+    let day = when(entry.time);
+    let mut chars = day.chars();
+    let first = chars.next().map(|c| c.to_lowercase().to_string()).unwrap_or_default();
+    format!("Last played {first}{} {}", chars.as_str(), place(entry))
+}
+
+/// 12.345 -> "12,35 %": how much of a game's code is matched.
+pub fn percent(p: f64) -> String {
+    format!("{p:.2} %").replace('.', ",")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn days_read_as_a_player_says_them() {
+        let now = Utc.with_ymd_and_hms(2026, 11, 23, 18, 0, 0).unwrap();
+        let at = |y, mo, d, h, mi| Utc.with_ymd_and_hms(y, mo, d, h, mi, 0).unwrap().timestamp() as u64;
+        assert_eq!(when_from(at(2026, 11, 23, 17, 1), now), "Today at 17:01");
+        assert_eq!(when_from(at(2026, 11, 22, 9, 5), now), "Yesterday at 9:05");
+        assert_eq!(when_from(at(2026, 10, 14, 10, 0), now), "14 October at 10:00");
+        assert_eq!(when_from(at(2025, 10, 14, 10, 0), now), "14 October 2025 at 10:00");
+    }
+
+    #[test]
+    fn percent_has_two_places() {
+        assert_eq!(percent(12.345), "12,35 %");
+    }
+}

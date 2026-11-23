@@ -1,7 +1,7 @@
 //! What the service needs from the program around it: telling the window that something changed,
 //! and the few questions only a person can answer (a dialog, a file to pick).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use openrac_launcher_core::actions::Plan;
 use openrac_launcher_core::jobs::Started;
@@ -64,6 +64,22 @@ pub trait Host: Send + Sync + 'static {
 
     /// A folder, or None.
     fn pick_folder(&self, title: &str) -> Option<PathBuf>;
+
+    /// A file of one of `extensions` (named `kind` in the dialog), the dialog opening in `start`
+    /// when given; None when the player picked nothing.
+    fn pick_file(&self, title: &str, kind: &str, extensions: &[&str], start: Option<&Path>) -> Option<PathBuf>;
+
+    /// Where to save a file named `name`, or None.
+    fn save_file(&self, title: &str, name: &str) -> Option<PathBuf>;
+
+    /// Shows a folder or opens a file with the system's program for it (Android: its Files app).
+    fn open_path(&self, path: &Path) -> Result<(), String>;
+
+    /// Opens a web page in the system's browser.
+    fn open_url(&self, url: &str) -> Result<(), String>;
+
+    /// Puts text on the clipboard.
+    fn copy(&self, text: &str);
 
     /// Starts the game where the system does it, not as a child process (Android's game
     /// activity). None: start it as a job, as a desktop does.

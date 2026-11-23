@@ -134,7 +134,7 @@ pub struct Situation<'a> {
     pub android_game: Option<&'a str>,
 }
 
-fn action<'a>(v: &'a VersionView, id: &str) -> Option<&'a ActionView> {
+pub fn action<'a>(v: &'a VersionView, id: &str) -> Option<&'a ActionView> {
     v.actions.iter().find(|a| a.id == id && a.this_platform)
 }
 
@@ -402,6 +402,18 @@ pub fn play_warning(v: &VersionView) -> Option<&str> {
 }
 
 // ---- doing what the button says -----------------------------------------------------------------
+
+/// The last step towards playing `v` (set-up, build, levels) when it stopped with an error: the
+/// game's page says so under the main button.
+pub fn failed_step<'a>(jobs: &'a [Job], v: &VersionView) -> Option<&'a Job> {
+    let install = format!("install:{}", v.version.game);
+    let ids = ["port-build", "port-rebuild", "port-levels", "port-levels-check", "overrides-stack"];
+    let last = jobs.iter().rfind(|j| {
+        (j.action_id == install || ids.contains(&j.action_id.as_str()))
+            && j.version().is_none_or(|k| k == v.version.key)
+    })?;
+    (last.state == crate::queue::JobState::Failed).then_some(last)
+}
 
 /// The versions whose button was pressed and whose request still goes on, and the ones whose
 /// visibility could not be added (not tried again until the launcher starts again).

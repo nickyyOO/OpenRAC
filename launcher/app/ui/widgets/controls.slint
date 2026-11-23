@@ -28,6 +28,8 @@ export component Button inherits Rectangle {
     // Smaller: the header's buttons, a row's.
     in property <bool> compact: false;
     in property <bool> big: false;
+    // The narrowest it gets, whatever its words.
+    in property <length> least: 0px;
     callback clicked();
 
     property <color> fill: kind == ButtonKind.primary ? Theme.amber
@@ -42,7 +44,7 @@ export component Button inherits Rectangle {
         : Theme.text;
 
     min-height: compact ? 32px : big ? 52px : Theme.target;
-    min-width: self.min-height;
+    min-width: max(self.min-height, root.least, row.preferred-width);
     horizontal-stretch: 0;
     opacity: enabled ? 1 : 0.45;
 
@@ -53,7 +55,7 @@ export component Button inherits Rectangle {
         background: root.fill;
         animate background { duration: Theme.fast; }
         animate y { duration: Theme.fast; easing: ease-out; }
-        HorizontalLayout {
+        row := HorizontalLayout {
             padding-left: root.text == "" ? 0 : (root.compact ? 12px : root.big ? 26px : 16px);
             padding-right: self.padding-left;
             spacing: root.big ? 12px : 8px;

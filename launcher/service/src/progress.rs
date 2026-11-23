@@ -197,6 +197,113 @@ pub fn tail_lines(lines: &[Line], count: usize) -> Vec<String> {
     kept[kept.len().saturating_sub(count)..].iter().map(|l| l.text.clone()).collect()
 }
 
+/// The newest progress line a tool printed.
+pub fn tool_progress(lines: &[Line]) -> Option<ToolProgress> {
+    lines.iter().rev().filter(|l| l.text.starts_with(PROGRESS_LINE)).find_map(|l| parse_progress(&l.text))
+}
+
+/// When a count was seen: what a time-left estimate starts from.
+#[derive(Debug, Clone, PartialEq)]
+struct Sample {
+    step: String,
+    done: u64,
+    at: u64,
+}
+
+/// The first count seen of a job's step and the newest, with when: how long is left. One per job,
+/// kept by whoever shows it.
+#[derive(Debug, Clone, Default)]
+pub struct Pace {
+    first: Option<Sample>,
+    latest: Option<Sample>,
+}
+
+impl Pace {
+    fn see(&mut self, said: &ToolProgress, at: u64) {
+        let Some(done) = said.done else { return };
+        let seen = Sample { step: said.step.clone(), done, at };
+        if self.latest.as_ref().is_some_and(|l| l.step == seen.step && l.done == seen.done) {
+            return;
+        }
+        if self.first.as_ref().is_none_or(|f| f.step != seen.step || seen.done < f.done) {
+            self.first = Some(seen.clone());
+        }
+        self.latest = Some(seen);
+    }
+
+    /// "about 12 minutes left", once a few counts were seen over a few seconds.
+    fn left(&self, total: Option<u64>) -> Option<String> {
+        let (first, now, total) = (self.first.as_ref()?, self.latest.as_ref()?, total?);
+        if first.step != now.step {
+            return None;
+        }
+        let items = now.done.saturating_sub(first.done);
+        let spent = now.at.saturating_sub(first.at);
+        if items < 2 || spent < 5_000 || now.done >= total {
+            return None;
+        }
+        let left = spent as f64 / items as f64 * (total - now.done) as f64;
+        if left < 60_000.0 {
+            return Some("less than a minute left".into());
+        }
+        let minutes = (left / 60_000.0).round() as u64;
+        Some(format!("about {minutes} {} left", if minutes == 1 { "minute" } else { "minutes" }))
+    }
+}
+
+/// What a running job shows a player: its step, how far along it is, and its last lines.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct JobSummary {
+    pub phase: String,
+    /// "Kerwan, 3 of 18", "42 %", "5 levels read"; empty when nothing is counted.
+    pub count: String,
+    /// 0 to 100; None for a bar without an end.
+    pub percent: Option<f32>,
+    pub left: Option<String>,
+    /// The game itself has nothing to count: a bar would only wait for the session's end.
+    pub bar: bool,
+    pub tail: Vec<String>,
+}
+
+pub fn summarize(job: &Job, pace: &mut Pace) -> JobSummary {
+    let tool = tool_progress(&job.lines);
+    let queued = job.state == JobState::Queued;
+    let phase = match &tool {
+        Some(t) if !queued => t.words.to_string(),
+        _ => phase_label(job) + if queued { "…" } else { "" },
+    };
+    let game = job.version().and_then(|k| k.split('/').next()).unwrap_or_default();
+    let mut summary =
+        JobSummary { phase, bar: !is_play(&job.action_id), tail: tail_lines(&job.lines, 8), ..Default::default() };
+    match &tool {
+        Some(t) => {
+            pace.see(t, now_ms());
+            summary.percent = tool_percent(t);
+            summary.left = pace.left(t.total);
+            if let (Some(done), Some(total)) = (t.done, t.total) {
+                summary.count = match t.level {
+                    Some(level) if !game.is_empty() => {
+                        format!("{}, {done} of {total}", crate::labels::level_name(game, level as u32))
+                    }
+                    _ => format!("{done} of {total}"),
+                };
+            }
+        }
+        None => {
+            let read = read_progress(&job.action_id, &job.lines);
+            summary.percent = read.percent;
+            summary.left = read.left;
+            summary.count = read.note.unwrap_or_default();
+        }
+    }
+    if summary.count.is_empty() {
+        if let Some(p) = summary.percent {
+            summary.count = format!("{} %", p.round());
+        }
+    }
+    summary
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { SideEntry } from "../state.slint";
 import { SideList } from "../shell/side-list.slint";
-import { Placeholder } from "placeholder.slint";
+import { GameView } from "game.slint";
 
 export global Games {
     in property <[SideEntry]> entries;
@@ -19,5 +19,5 @@ export component GamesPage inherits HorizontalLayout {
         label: "Your games";
         picked(key) => { Games.pick(key); }
     }
-    Placeholder { title: "Game"; }
+    GameView { }
 }

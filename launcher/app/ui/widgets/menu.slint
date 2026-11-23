@@ -1,0 +1,96 @@
+// A button that opens a short list of secondary actions, below it and aligned to its right edge.
+// Closes on a choice or a click elsewhere.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "icon.slint";
+
+export struct MenuItem {
+    id: string,
+    label: string,
+    // An icon's path (Icons.*).
+    icon: string,
+    // Removes or deletes something: in the error colour.
+    danger: bool,
+}
+
+component Row inherits Rectangle {
+    in property <MenuItem> item;
+    callback chosen();
+    height: 38px;
+    border-radius: Theme.radius-sm;
+    background: area.has-hover ? Theme.control-card-hi : transparent;
+    accessible-role: button;
+    accessible-label: item.label;
+    accessible-action-default => { chosen(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.chosen(); }
+    }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 14px;
+        spacing: 10px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.item.icon;
+            colour: root.item.danger ? Theme.err : Theme.soft;
+            size: 16px;
+        }
+        Text {
+            text: root.item.label;
+            color: root.item.danger ? Theme.err : Theme.text;
+            font-size: 13.5px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component Menu inherits Rectangle {
+    in property <[MenuItem]> items;
+    in property <string> label: "More actions";
+    // A dark shade, for a button over a picture.
+    in property <bool> over-picture: false;
+    in property <length> size: 44px;
+    callback chosen(string);
+    width: size;
+    height: size;
+    border-radius: Theme.radius-sm;
+    background: over-picture ? (area.has-hover ? #00000099 : #00000073) : (area.has-hover ? Theme.control-hi : Theme.control);
+    opacity: items.length > 0 ? 1 : 0;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { popup.show(); }
+    area := TouchArea {
+        enabled: root.items.length > 0;
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+    Icon {
+        commands: Icons.more;
+        colour: Theme.text;
+        size: 20px;
+    }
+    popup := PopupWindow {
+        x: root.width - self.width;
+        y: root.height + 8px;
+        width: 290px;
+        Rectangle {
+            border-radius: Theme.radius;
+            background: Theme.panel-hi;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: #00000059;
+            VerticalLayout {
+                padding: 6px;
+                spacing: 2px;
+                for item in root.items: Row {
+                    item: item;
+                    chosen => {
+                        popup.close();
+                        root.chosen(item.id);
+                    }
+                }
+            }
+        }
+    }
+}
