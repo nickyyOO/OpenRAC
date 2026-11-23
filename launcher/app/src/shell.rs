@@ -69,6 +69,8 @@ pub fn install(window: &AppWindow) {
     help::install(window);
     saves::install(window);
     stopped::install(window);
+    #[cfg(not(target_os = "android"))]
+    crate::pages::shortcuts::install(window);
 }
 
 impl Shell {
@@ -86,8 +88,7 @@ impl Shell {
         let app = self.window.global::<App>();
         self.config_changed();
         self.library_changed();
-        self.read_game_details();
-        self.read_card();
+        self.game_picked();
         app.set_ready(true);
     }
 
@@ -153,8 +154,7 @@ impl Shell {
         app.set_setup_complete(config.setup_complete);
         self.apply_theme();
         self.show_game();
-        self.read_game_details();
-        self.read_card();
+        self.show_help();
     }
 
     fn apply_theme(&self) {
@@ -248,12 +248,21 @@ impl Shell {
 
     fn pick_version(&self, key: &str) {
         self.window.global::<Games>().set_selected(key.into());
-        self.help.reset(&self.window);
-        self.saves.reset(&self.window);
         self.apply_theme();
         self.follow_view();
+        self.game_picked();
+    }
+
+    /// Another game's page is shown: everything on it is read for that game.
+    fn game_picked(&self) {
+        self.help.reset(&self.window);
+        self.saves.reset(&self.window);
         self.show_game();
+        self.show_stopped();
         self.read_game_details();
+        self.read_card();
+        #[cfg(not(target_os = "android"))]
+        crate::pages::shortcuts::read(self);
     }
 
     /// The launcher hears which game's page is open (Discord, the stopped-game notice).

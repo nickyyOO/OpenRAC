@@ -32,5 +32,9 @@ open = "5.4.5"
 # Copy report and Copy in the toasts.
 arboard = { version = "3.7.0", default-features = false }
 
+[target.'cfg(windows)'.dependencies]
+# Where Steam is (steam.rs).
+windows-registry = "0.100.0"
+
 [build-dependencies]
 slint-build = "1.19.0"

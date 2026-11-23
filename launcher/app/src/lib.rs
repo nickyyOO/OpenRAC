@@ -11,6 +11,8 @@ mod host;
 mod pages;
 mod shell;
 #[cfg(not(target_os = "android"))]
+mod steam;
+#[cfg(not(target_os = "android"))]
 mod system;
 mod theme;
 mod toasts;

@@ -119,7 +119,8 @@ mod tests {
 
     #[test]
     fn names_read_as_a_list() {
-        assert!(crash_after_update(&["A".into(), "B".into(), "C".into()]).starts_with("This came after A, B and C updated."));
+        assert!(crash_after_update(&["A".into(), "B".into(), "C".into()])
+            .starts_with("This came after A, B and C updated."));
         assert!(crash_after_update(&["A".into()]).starts_with("This came after A updated."));
     }
 }

@@ -185,8 +185,10 @@ impl StoppedState {
         };
         ui.set_say(say.into());
 
-        let mods = self.mods.borrow().as_ref().filter(|(at, _)| *at == stopped.at).map(|(_, m)| m.clone()).unwrap_or_default();
-        let mods_line = if crash.is_some() && !mods.loaded.is_empty() { crash_mods_line(&mods.loaded) } else { String::new() };
+        let mods =
+            self.mods.borrow().as_ref().filter(|(at, _)| *at == stopped.at).map(|(_, m)| m.clone()).unwrap_or_default();
+        let mods_line =
+            if crash.is_some() && !mods.loaded.is_empty() { crash_mods_line(&mods.loaded) } else { String::new() };
         ui.set_mods_line(mods_line.into());
         let names: Vec<String> = mods.updated.iter().map(|m| m.name.clone()).collect();
         let update_line = if crash.is_some() && !names.is_empty() { crash_after_update(&names) } else { String::new() };

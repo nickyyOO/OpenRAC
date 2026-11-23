@@ -1,0 +1,57 @@
+// Start this game without the launcher's window: from Steam (its own entry) or from a desktop
+// shortcut. Both start the launcher with --play.
+
+import { Theme } from "../theme.slint";
+import { Button, Card, Rule } from "../widgets/controls.slint";
+import { Setting } from "../widgets/setting.slint";
+
+export global Shortcuts {
+    in property <bool> steam-shown;
+    in property <string> steam-line;
+    in property <string> steam-button;
+    in property <bool> steam-enabled;
+    in property <bool> desktop-shown;
+    // "steam" or "desktop" while it is written.
+    in property <string> busy;
+    in property <string> said;
+    in property <bool> failed;
+    callback add-to-steam();
+    callback create-shortcut();
+}
+
+export component ShortcutsBlock inherits Card {
+    VerticalLayout {
+        padding-left: 22px;
+        padding-right: 22px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        if Shortcuts.steam-shown: Setting {
+            title: "Steam";
+            line: Shortcuts.steam-line;
+            Button {
+                text: Shortcuts.steam-button;
+                on-card: true;
+                enabled: Shortcuts.busy == "" && Shortcuts.steam-enabled;
+                clicked => { Shortcuts.add-to-steam(); }
+            }
+        }
+        if Shortcuts.steam-shown && Shortcuts.desktop-shown: Rule { }
+        if Shortcuts.desktop-shown: Setting {
+            title: "Desktop shortcut";
+            line: "A shortcut on your Desktop that starts this game without the launcher's window.";
+            Button {
+                text: "Create shortcut";
+                on-card: true;
+                enabled: Shortcuts.busy == "";
+                clicked => { Shortcuts.create-shortcut(); }
+            }
+        }
+        if Shortcuts.said != "": Text {
+            text: Shortcuts.said;
+            color: Shortcuts.failed ? Theme.err : Theme.ok;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+        if Shortcuts.said != "": Rectangle { height: 10px; }
+    }
+}

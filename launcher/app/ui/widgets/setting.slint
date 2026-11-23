@@ -1,0 +1,35 @@
+// One setting: its name and a line on what it does, and its control at the right.
+
+import { Theme } from "../theme.slint";
+
+export component Setting inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> line;
+    // The line in the error colour (why it cannot be done).
+    in property <bool> warn: false;
+    spacing: 16px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    min-height: 56px;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: root.title;
+            color: Theme.text;
+            font-weight: 600;
+            wrap: word-wrap;
+        }
+        if root.line != "": Text {
+            text: root.line;
+            color: root.warn ? Theme.warn : Theme.soft;
+            font-size: 12.5px;
+            wrap: word-wrap;
+        }
+    }
+    VerticalLayout {
+        alignment: center;
+        @children
+    }
+}

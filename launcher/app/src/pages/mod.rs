@@ -3,4 +3,6 @@
 pub mod game;
 pub mod help;
 pub mod saves;
+#[cfg(not(target_os = "android"))]
+pub mod shortcuts;
 pub mod stopped;

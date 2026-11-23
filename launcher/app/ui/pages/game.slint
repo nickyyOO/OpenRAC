@@ -10,6 +10,7 @@ import { Scroll } from "../widgets/scroll.slint";
 import { Help, HelpBlock } from "help.slint";
 import { SavesBlock } from "saves.slint";
 import { Stopped, StoppedNotice } from "stopped.slint";
+import { Shortcuts, ShortcutsBlock } from "shortcuts.slint";
 
 // The main button.
 export struct PlayerButton {
@@ -530,6 +531,7 @@ export component GameView inherits Rectangle {
                     if GamePage.set-up || !GamePage.coming: SavesBlock { horizontal-stretch: 4; }
                     if GamePage.set-up: HelpBlock { horizontal-stretch: 3; }
                 }
+                if !GamePage.coming && (Shortcuts.steam-shown || Shortcuts.desktop-shown): ShortcutsBlock { }
                 @children
             }
         }
