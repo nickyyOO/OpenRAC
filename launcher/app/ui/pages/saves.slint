@@ -1,0 +1,365 @@
+// A game's saves: the memory card's used slots as rows (planet, bolts, when it was saved), the
+// empty ones in one line, a party's co-op saves, and the backups folded under a line of their own.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, Field, Rule, Spinner } from "../widgets/controls.slint";
+
+export struct SlotRow {
+    // From 0.
+    index: int,
+    // "Slot 1", "Co-op 2".
+    label: string,
+    planet: string,
+    // "1 250".
+    bolts: string,
+    when: string,
+    // A mark beside it: "Mods" (written while mods were loaded), or whose party a co-op save was.
+    badge: string,
+    editable: bool,
+    // A contributor's detail: the file and its size.
+    detail: string,
+}
+
+export struct BackupRow {
+    name: string,
+    label: string,
+    when: string,
+    size: string,
+}
+
+export global Saves {
+    in property <bool> read;
+    // The card exists: the game was played and saved.
+    in property <bool> exists;
+    in property <bool> developer;
+    // The card's folder name, for a contributor.
+    in property <string> folder;
+    in property <[SlotRow]> slots;
+    // "Slots 3 to 5 are empty".
+    in property <string> empty;
+    in property <[SlotRow]> coop;
+    in property <[BackupRow]> backups;
+    // "Copy from NTSC-U", "Copy from…", or "" when no other disc has saves.
+    in property <string> copy-text;
+    in property <bool> transfer: true;
+    in property <bool> editing: true;
+    in property <bool> folders: true;
+    in property <bool> creating;
+    in property <string> restoring;
+    in-out property <bool> show-backups;
+
+    callback refresh();
+    callback export();
+    callback import();
+    callback copy();
+    callback open-folder();
+    callback edit(int);
+    callback back-up(string);
+    callback restore(string);
+}
+
+component SlotLine inherits HorizontalLayout {
+    in property <SlotRow> slot;
+    spacing: 14px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    Text {
+        width: 56px;
+        text: root.slot.label;
+        color: Theme.dim;
+        font-size: 12.5px;
+        vertical-alignment: center;
+    }
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: root.slot.planet;
+            color: Theme.text;
+            font-weight: 600;
+            overflow: elide;
+        }
+        HorizontalLayout {
+            spacing: 10px;
+            HorizontalLayout {
+                spacing: 4px;
+                Icon { y: (parent.height - self.height) / 2; commands: Icons.bolt; colour: Theme.amber; size: 13px; }
+                Text { text: root.slot.bolts; color: Theme.amber; font-weight: 700; font-size: 13.5px; vertical-alignment: center; }
+            }
+            Text { text: root.slot.when; color: Theme.soft; font-size: 12.5px; vertical-alignment: center; overflow: elide; horizontal-stretch: 1; }
+        }
+        if Saves.developer && root.slot.detail != "": Text {
+            text: root.slot.detail;
+            color: Theme.dim;
+            font-family: "monospace";
+            font-size: 11px;
+            overflow: elide;
+        }
+    }
+    if root.slot.badge != "": VerticalLayout {
+        alignment: center;
+        Rectangle {
+            height: 20px;
+            width: mods-text.preferred-width + 14px;
+            border-radius: Theme.radius-xs;
+            background: Theme.amber.with-alpha(0.12);
+            mods-text := Text {
+                text: root.slot.badge;
+                color: Theme.amber;
+                font-size: 10.5px;
+                font-weight: 700;
+            }
+        }
+    }
+    if root.slot.editable: VerticalLayout {
+        alignment: center;
+        Button {
+            text: "Edit";
+            icon: Icons.edit;
+            compact: true;
+            on-card: true;
+            enabled: Saves.editing;
+            clicked => { Saves.edit(root.slot.index); }
+        }
+    }
+}
+
+export component SavesBlock inherits Card {
+    property <bool> naming;
+    property <string> note;
+    VerticalLayout {
+        alignment: start;
+        padding: 22px;
+        spacing: 12px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Saves";
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Theme.gold;
+                vertical-alignment: center;
+            }
+            if Saves.developer && Saves.exists && Saves.folder != "": VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 20px;
+                    width: min(folder-text.preferred-width + 14px, 160px);
+                    border-radius: Theme.radius-xs;
+                    background: Theme.ink-deep;
+                    folder-text := Text {
+                        width: parent.width - 14px;
+                        text: Saves.folder;
+                        color: Theme.soft;
+                        font-family: "monospace";
+                        font-size: 11px;
+                        overflow: elide;
+                    }
+                }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        // The card's tools, wrapping under the title on a narrow panel.
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: end;
+            if Saves.developer && Saves.exists: Button {
+                text: "Refresh";
+                icon: Icons.refresh;
+                compact: true;
+                on-card: true;
+                enabled: Saves.read;
+                clicked => { Saves.refresh(); }
+            }
+            if Saves.slots.length > 0: Button {
+                text: "Export";
+                icon: Icons.upload;
+                compact: true;
+                on-card: true;
+                enabled: Saves.transfer;
+                clicked => { Saves.export(); }
+            }
+            Button {
+                text: "Import";
+                icon: Icons.download;
+                compact: true;
+                on-card: true;
+                enabled: Saves.transfer;
+                clicked => { Saves.import(); }
+            }
+            if Saves.copy-text != "": Button {
+                text: Saves.copy-text;
+                icon: Icons.copy;
+                compact: true;
+                on-card: true;
+                enabled: Saves.transfer;
+                clicked => { Saves.copy(); }
+            }
+            Button {
+                text: "Open folder";
+                icon: Icons.folder;
+                compact: true;
+                on-card: true;
+                enabled: Saves.folders;
+                clicked => { Saves.open-folder(); }
+            }
+        }
+
+        if !Saves.read: HorizontalLayout {
+            spacing: 10px;
+            Spinner { size: 16px; }
+            Text { text: "Reading the memory card…"; color: Theme.soft; vertical-alignment: center; }
+        }
+        if Saves.read && !Saves.exists: Text {
+            text: "Your saves show here once you have played and saved.";
+            color: Theme.soft;
+            wrap: word-wrap;
+        }
+        if Saves.read && Saves.exists && Saves.slots.length == 0: Text {
+            text: "No saves on this card yet: they show here once you have saved in the game.";
+            color: Theme.soft;
+            wrap: word-wrap;
+        }
+        if Saves.read && Saves.exists && Saves.slots.length > 0: VerticalLayout {
+            for slot[i] in Saves.slots: VerticalLayout {
+                if i > 0: Rule { }
+                SlotLine { slot: slot; }
+            }
+        }
+        if Saves.read && Saves.exists && Saves.empty != "": Text {
+            text: Saves.empty;
+            color: Theme.dim;
+            font-size: 12.5px;
+        }
+
+        if Saves.read && Saves.coop.length > 0: VerticalLayout {
+            spacing: 4px;
+            padding-top: 10px;
+            Text { text: "Co-op saves"; color: Theme.lav; font-weight: 700; font-size: 14px; }
+            Text {
+                text: "From your parties. Your own saves above are left as they are.";
+                color: Theme.soft;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            for slot[i] in Saves.coop: VerticalLayout {
+                if i > 0: Rule { }
+                SlotLine { slot: slot; }
+            }
+        }
+
+        if Saves.read && Saves.exists: VerticalLayout {
+            spacing: 10px;
+            Rule { }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    fold-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { Saves.show-backups = !Saves.show-backups; }
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Saves.show-backups ? Icons.down : Icons.next;
+                            colour: Theme.lav;
+                            size: 12px;
+                        }
+                        Text {
+                            text: "Backups (" + Saves.backups.length + ")";
+                            color: fold-area.has-hover ? Theme.text : Theme.lav;
+                            font-weight: 600;
+                            font-size: 14px;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+                Button {
+                    text: "Back up now";
+                    icon: Icons.save;
+                    compact: true;
+                    on-card: true;
+                    enabled: !Saves.creating && !root.naming;
+                    clicked => {
+                        Saves.show-backups = true;
+                        root.naming = true;
+                    }
+                }
+            }
+            if Saves.show-backups && root.naming: HorizontalLayout {
+                spacing: 6px;
+                Field {
+                    init => { self.focus(); }
+                    text <=> root.note;
+                    placeholder: "Name it, if you like: before the last boss";
+                    enabled: !Saves.creating;
+                    accepted => {
+                        Saves.back-up(root.note);
+                        root.note = "";
+                        root.naming = false;
+                    }
+                }
+                Button {
+                    text: "Back up";
+                    kind: ButtonKind.primary;
+                    compact: true;
+                    enabled: !Saves.creating;
+                    clicked => {
+                        Saves.back-up(root.note);
+                        root.note = "";
+                        root.naming = false;
+                    }
+                }
+                Button {
+                    text: "Cancel";
+                    kind: ButtonKind.quiet;
+                    compact: true;
+                    on-card: true;
+                    clicked => { root.naming = false; }
+                }
+            }
+            if Saves.show-backups && Saves.backups.length == 0 && !root.naming: Text {
+                text: "No backups yet. The launcher also takes one by itself before the save editor writes.";
+                color: Theme.soft;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            if Saves.show-backups: VerticalLayout {
+                for backup[i] in Saves.backups: VerticalLayout {
+                    if i > 0: Rule { }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            Text { text: backup.label; color: Theme.text; font-weight: 600; overflow: elide; }
+                            Text { text: backup.when; color: Theme.dim; font-size: 12.5px; overflow: elide; }
+                        }
+                        if Saves.developer: VerticalLayout {
+                            alignment: center;
+                            Text { text: backup.size; color: Theme.soft; font-family: "monospace"; font-size: 11px; }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: "Restore";
+                                kind: ButtonKind.quiet;
+                                compact: true;
+                                on-card: true;
+                                enabled: Saves.restoring == "" && Saves.editing;
+                                clicked => { Saves.restore(backup.name); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

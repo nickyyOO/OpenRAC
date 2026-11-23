@@ -71,6 +71,57 @@ pub fn last_played(entry: &ReportEntry) -> String {
     format!("Last played {first}{} {}", chars.as_str(), place(entry))
 }
 
+/// A save's time as the game writes it ("2026-10-09 17:01:21", the console's own clock) in words;
+/// the game's own text when it cannot be read.
+pub fn stamp(stamp: &str) -> String {
+    let parsed = chrono::NaiveDateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M:%S")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M"))
+        .ok()
+        .and_then(|t| Local.from_local_datetime(&t).earliest());
+    match parsed {
+        Some(t) => when(t.timestamp().max(0) as u64),
+        None => stamp.to_string(),
+    }
+}
+
+/// 2202320 -> "2 202 320" (narrow no-break spaces).
+pub fn grouped(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push('\u{202f}');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// 1 234 567 bytes -> "1,2 MB".
+pub fn size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["bytes", "KB", "MB", "GB", "TB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1000.0 && unit < UNITS.len() - 1 {
+        value /= 1000.0;
+        unit += 1;
+    }
+    // Rounded before the unit is chosen: 999 999 bytes is 1000 KB, which is a megabyte.
+    value = if unit == 0 { value.round() } else { (value * 10.0).round() / 10.0 };
+    if value >= 1000.0 && unit < UNITS.len() - 1 {
+        value /= 1000.0;
+        unit += 1;
+    }
+    let text = if unit == 0 {
+        grouped(value as u64)
+    } else if value < 10.0 {
+        format!("{value:.1}").replace('.', ",")
+    } else {
+        format!("{value:.0}")
+    };
+    format!("{text} {}", UNITS[unit])
+}
+
 /// 12.345 -> "12,35 %": how much of a game's code is matched.
 pub fn percent(p: f64) -> String {
     format!("{p:.2} %").replace('.', ",")
@@ -97,6 +148,16 @@ mod tests {
         assert_eq!(duration(23 * 60), "23 minutes");
         assert_eq!(duration(74 * 60), "1 hour 14 minutes");
         assert_eq!(duration(120 * 60), "2 hours");
+    }
+
+    #[test]
+    fn numbers_and_sizes_read_as_people_write_them() {
+        assert_eq!(grouped(2202320), "2\u{202f}202\u{202f}320");
+        assert_eq!(grouped(999), "999");
+        assert_eq!(size(512), "512 bytes");
+        assert_eq!(size(1_234_567), "1,2 MB");
+        assert_eq!(size(999_999), "1,0 MB");
+        assert_eq!(size(45_000), "45 KB");
     }
 
     #[test]

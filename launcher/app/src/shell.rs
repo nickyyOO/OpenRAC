@@ -11,6 +11,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
+use crate::pages::saves::{self, SavesState};
 use crate::toasts::Toasts;
 use crate::{art, theme, App, AppWindow, Games, Page, SideEntry, Tone};
 
@@ -22,6 +23,7 @@ pub struct Shell {
     asked: RefCell<Option<Sender<bool>>>,
     pub game: GameState,
     pub help: HelpState,
+    pub saves: SavesState,
 }
 
 thread_local! {
@@ -45,6 +47,7 @@ pub fn install(window: &AppWindow) {
         asked: RefCell::default(),
         game: GameState::default(),
         help: HelpState::default(),
+        saves: SavesState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -61,6 +64,7 @@ pub fn install(window: &AppWindow) {
     window.global::<Games>().on_pick(|key| with(|s| s.pick_version(&key)));
     game::install(window);
     help::install(window);
+    saves::install(window);
 }
 
 impl Shell {
@@ -79,6 +83,7 @@ impl Shell {
         self.config_changed();
         self.library_changed();
         self.read_game_details();
+        self.read_card();
         app.set_ready(true);
     }
 
@@ -90,7 +95,10 @@ impl Shell {
             Change::Config => self.config_changed(),
             Change::Library => self.library_changed(),
             Change::Jobs => self.jobs_changed(),
-            Change::Stopped | Change::GameData => self.read_game_details(),
+            Change::Stopped | Change::GameData => {
+                self.read_game_details();
+                self.read_card();
+            }
         }
     }
 
@@ -136,6 +144,7 @@ impl Shell {
         self.apply_theme();
         self.show_game();
         self.read_game_details();
+        self.read_card();
     }
 
     fn apply_theme(&self) {
@@ -191,6 +200,12 @@ impl Shell {
         self.game.show(&self.window, launcher, &key);
     }
 
+    /// The shown disc's memory card, read again off the window's thread.
+    pub fn read_card(&self) {
+        let (Some(launcher), Some(serial)) = (self.launcher(), saves::shown_serial(self)) else { return };
+        self.saves.read(launcher, serial);
+    }
+
     pub fn show_help(&self) {
         self.help.show(self);
     }
@@ -213,6 +228,7 @@ impl Shell {
     fn pick_version(&self, key: &str) {
         self.window.global::<Games>().set_selected(key.into());
         self.help.reset(&self.window);
+        self.saves.reset(&self.window);
         self.apply_theme();
         self.follow_view();
         self.show_game();
