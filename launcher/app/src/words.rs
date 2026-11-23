@@ -1,7 +1,7 @@
 //! Times and places in a player's words: "Today at 17:01", "on Batalia".
 
 use chrono::{DateTime, Datelike, Local, TimeZone};
-use openrac_launcher_service::core::reports::ReportEntry;
+use openrac_launcher_service::core::reports::{ReportEntry, ReportKind};
 
 /// Where a session was: "on Batalia", "in level 12", "in the menus".
 pub fn place(entry: &ReportEntry) -> String {
@@ -9,6 +9,35 @@ pub fn place(entry: &ReportEntry) -> String {
         (Some(planet), _) => format!("on {planet}"),
         (None, Some(level)) => format!("in level {level}"),
         (None, None) => "in the menus".into(),
+    }
+}
+
+/// "23 minutes", "1 hour 14 minutes", "less than a minute".
+pub fn duration(seconds: u64) -> String {
+    if seconds < 60 {
+        return "less than a minute".into();
+    }
+    let minutes = (seconds as f64 / 60.0).round() as u64;
+    let part = |n: u64, word: &str| format!("{n} {word}{}", if n == 1 { "" } else { "s" });
+    match (minutes / 60, minutes % 60) {
+        (0, m) => part(m, "minute"),
+        (h, 0) => part(h, "hour"),
+        (h, m) => format!("{} {}", part(h, "hour"), part(m, "minute")),
+    }
+}
+
+/// What a row says happened: "Crashed on Batalia", "Played 23 minutes on Kerwan".
+pub fn headline(entry: &ReportEntry) -> String {
+    if entry.kind == ReportKind::Crash {
+        return format!("Crashed {}", place(entry));
+    }
+    let time = entry.duration.map(|d| format!("Played {}", duration(d))).unwrap_or_else(|| "Played".into());
+    if entry.crashed {
+        format!("{time}, then crashed {}", place(entry))
+    } else if entry.level.is_some() || entry.planet.is_some() {
+        format!("{time} {}", place(entry))
+    } else {
+        time
     }
 }
 
@@ -60,6 +89,14 @@ mod tests {
         assert_eq!(when_from(at(2026, 11, 22, 9, 5), now), "Yesterday at 9:05");
         assert_eq!(when_from(at(2026, 10, 14, 10, 0), now), "14 October at 10:00");
         assert_eq!(when_from(at(2025, 10, 14, 10, 0), now), "14 October 2025 at 10:00");
+    }
+
+    #[test]
+    fn durations_read_in_words() {
+        assert_eq!(duration(30), "less than a minute");
+        assert_eq!(duration(23 * 60), "23 minutes");
+        assert_eq!(duration(74 * 60), "1 hour 14 minutes");
+        assert_eq!(duration(120 * 60), "2 hours");
     }
 
     #[test]

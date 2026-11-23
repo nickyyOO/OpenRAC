@@ -7,6 +7,7 @@ import { Icon, Icons } from "../widgets/icon.slint";
 import { Badge, Button, ButtonKind, Card, ProgressBar, Spinner, Switch, Tone } from "../widgets/controls.slint";
 import { Menu, MenuItem } from "../widgets/menu.slint";
 import { Scroll } from "../widgets/scroll.slint";
+import { Help, HelpBlock } from "help.slint";
 
 // The main button.
 export struct PlayerButton {
@@ -89,6 +90,10 @@ export global GamePage {
     in property <bool> coming;
     in property <string> coming-text;
     in property <float> coming-percent: -1;
+    // The disc is set up: its saves and Help show under the band.
+    in property <bool> set-up;
+    // Asked by the menu: Help's logs, unfolded and in view.
+    in property <int> logs-asked;
 
     callback act();
     callback menu-chosen(string);
@@ -310,7 +315,7 @@ component Hero inherits Rectangle {
             VerticalLayout {
                 spacing: 10px;
                 alignment: start;
-                width: 340px;
+                width: 300px;
                 HorizontalLayout {
                     spacing: 10px;
                     alignment: center;
@@ -482,6 +487,9 @@ export component GameView inherits Rectangle {
     in property <length> page-max: 920px;
     out property <bool> scrolled: scroll.scrolled;
 
+    changed logs-asked => { scroll.show(below.y - 20px); }
+    property <int> logs-asked: GamePage.logs-asked;
+
     scroll := Scroll {
         HorizontalLayout {
             alignment: center;
@@ -514,6 +522,10 @@ export component GameView inherits Rectangle {
                     }
                 }
                 if GamePage.coming: Coming { }
+                below := HorizontalLayout {
+                    spacing: 20px;
+                    if GamePage.set-up: HelpBlock { }
+                }
                 @children
             }
         }

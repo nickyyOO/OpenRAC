@@ -3,11 +3,10 @@
 
 use std::path::PathBuf;
 
-use openrac_launcher_core::reports::{self, ReportEntry};
 use openrac_launcher_core::{detect, disc_choice, enhanced, install, launcher_log, overrides, pcsx2_card, plugins};
 
 use crate::host::{Change, Notice};
-use crate::launcher::{game_data, scan, Launcher};
+use crate::launcher::{scan, Launcher};
 
 impl Launcher {
     /// Removes what setting `game` up made, after the player confirmed. The disc image and the
@@ -69,8 +68,8 @@ impl Launcher {
     /// Fails while a game runs with `serial`'s memory card: its saves cannot change under it.
     pub fn card_free(&self, serial: &str) -> Result<(), String> {
         let card = openrac_launcher_core::saves::get_memcard_dir(serial);
+        let holder = match self.android_game() {
             Some(library) => cfg!(target_os = "android").then_some(library),
-            Some(library) => Some(library).filter(|_| cfg!(target_os = "android")),
             None => openrac_launcher_core::save_edit::card_in_use(&card, serial)?,
         };
         match holder {
@@ -130,11 +129,5 @@ impl Launcher {
                 .entry
                 .enabled;
         mods.iter().filter(|m| m.enabled).count() + packs.iter().filter(|p| p.enabled).count() + usize::from(enhanced)
-    }
-
-    /// The newest log or crash report of `game`: when it was last played, and where. Blocks.
-    pub fn last_played(&self, game: &str) -> Option<ReportEntry> {
-        let data = game_data(&self.config(), game)?;
-        reports::list(&data).into_iter().next()
     }
 }

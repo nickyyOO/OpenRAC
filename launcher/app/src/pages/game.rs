@@ -26,10 +26,11 @@ pub struct GameState {
 }
 
 #[derive(Clone)]
-struct Details {
-    key: String,
-    mods: usize,
-    last: Option<ReportEntry>,
+pub struct Details {
+    pub key: String,
+    pub mods: usize,
+    /// The game's logs and crash reports, the newest first, or why they could not be read.
+    pub reports: Result<Vec<ReportEntry>, String>,
 }
 
 /// The band's colours and the title's typeface for each game.
@@ -98,6 +99,12 @@ fn chosen(shell: &Shell, id: &str) {
     if id == "activity" {
         return shell.open_page(Page::Activity);
     }
+    if id == "logs" {
+        shell.window().global::<crate::Help>().set_open(true);
+        let page = shell.window().global::<GamePage>();
+        page.set_logs_asked(page.get_logs_asked() + 1);
+        return;
+    }
     let id = id.to_string();
     on_game(move |l, key, v| {
         let (key, game, title, serial, dir) = (
@@ -141,6 +148,9 @@ fn menu(icons: &Icons, game: &GameView, v: &VersionView, next: &PlayerState) -> 
     }
     if action(v, "editor-preview").is_some_and(|a| a.runnable) {
         items.push(item("preview", "Preview a level in OpenRAC Editor", icons.get_play(), false));
+    }
+    if set_up {
+        items.push(item("logs", "Logs and crash reports", icons.get_book(), false));
     }
     if set_up && !v.version.serial.is_empty() {
         items.push(item("import-pcsx2", "Import saves from PCSX2", icons.get_save(), false));
@@ -192,6 +202,7 @@ impl GameState {
         let set_up = game.install.as_ref().is_some_and(|i| i.extracted.is_some());
 
         page.set_found(true);
+        page.set_set_up(set_up);
         page.set_key(v.version.key.as_str().into());
         let (series, name) = title_lines(&v.version.title);
         page.set_series(series.into());
@@ -222,7 +233,10 @@ impl GameState {
         let details = self.details.borrow().clone().filter(|d| d.key == key);
         let count = details.as_ref().map(|d| d.mods).unwrap_or_default();
         page.set_mods_count(if count == 0 { "enabled".into() } else { format!("enabled: {count}").into() });
-        let last = details.and_then(|d| d.last).filter(|_| next.kind == PlayerKind::Play && set_up);
+        let last = details
+            .as_ref()
+            .and_then(|d| d.reports.as_ref().ok()?.first().cloned())
+            .filter(|_| next.kind == PlayerKind::Play && set_up);
         page.set_last_played(last.as_ref().map(words::last_played).unwrap_or_default().into());
 
         let stopped = failed_step(&jobs, v).filter(|_| next.job.is_none());
@@ -278,6 +292,11 @@ impl GameState {
         page.set_coming_percent(v.version.progress.as_ref().map(|p| p.percent as f32).unwrap_or(-1.0));
     }
 
+    /// What was last read from files for `key`.
+    pub fn details(&self, key: &str) -> Option<Details> {
+        self.details.borrow().clone().filter(|d| d.key == key)
+    }
+
     fn job_strip(&self, job: Option<&Job>) -> JobStrip {
         let Some(job) = job else { return JobStrip::default() };
         let mut paces = self.paces.borrow_mut();
@@ -300,11 +319,12 @@ impl GameState {
         let (launcher, key, game, version) = (launcher.clone(), key.to_string(), game.to_string(), version.to_string());
         std::thread::spawn(move || {
             let details =
-                Details { mods: launcher.mods_on_count(&game, &version), last: launcher.last_played(&game), key };
+                Details { mods: launcher.mods_on_count(&game, &version), reports: launcher.reports(&game), key };
             let _ = slint::invoke_from_event_loop(move || {
                 shell::with(|s| {
                     *s.game.details.borrow_mut() = Some(details);
                     s.show_game();
+                    s.show_help();
                 })
             });
         });

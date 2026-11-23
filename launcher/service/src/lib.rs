@@ -13,6 +13,7 @@ mod player;
 mod presence;
 mod progress;
 mod queue;
+mod reports;
 mod tasks;
 
 pub use failure::{bake_failure, has_path, hide_paths, tool_failure, BakeFailure, NextStep, ToolError, ToolFailure};

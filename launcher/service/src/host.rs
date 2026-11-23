@@ -81,6 +81,22 @@ pub trait Host: Send + Sync + 'static {
     /// Puts text on the clipboard.
     fn copy(&self, text: &str);
 
+    /// The folder a file made for the player (a report's .zip) is made in.
+    fn hand_over_folder(&self) -> Option<PathBuf> {
+        openrac_launcher_core::reports::save_folder()
+    }
+
+    /// A file made for the player at `made`: a desktop keeps it there and shows its folder (Android
+    /// asks where to save it). Returns where it went in the player's words, or None when they
+    /// backed out.
+    fn hand_over(&self, made: &Path) -> Result<Option<String>, String> {
+        if let Some(folder) = made.parent() {
+            self.open_path(folder)?;
+        }
+        let home = openrac_launcher_core::reports::home();
+        Ok(Some(openrac_launcher_core::reports::tidy(&made.to_string_lossy(), home.as_deref())))
+    }
+
     /// Starts the game where the system does it, not as a child process (Android's game
     /// activity). None: start it as a job, as a desktop does.
     fn launch_game(&self, _plan: &Plan) -> Option<Result<Started, String>> {

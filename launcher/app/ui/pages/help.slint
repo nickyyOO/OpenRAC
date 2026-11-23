@@ -1,0 +1,348 @@
+// Help, beside a game's saves: a recent crash first, with the two ways to send us its report and
+// Dismiss; then the logs and crash reports folded under one line, the newest first, each with
+// Copy, Save and Delete (and all at once) after a plain question; then Detailed logs.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, CheckBox, Rule, Spinner } from "../widgets/controls.slint";
+
+// One log or crash report, in a player's words.
+export struct ReportRow {
+    file: string,
+    // "Crashed on Batalia", "Played 23 minutes on Kerwan".
+    headline: string,
+    // "Today at 17:01".
+    when: string,
+    crash: bool,
+}
+
+export global Help {
+    // The list is read (false while it is read the first time).
+    in property <bool> read;
+    in property <[ReportRow]> rows;
+    // "3 logs, 1 crash".
+    in property <string> count;
+    // The newest crash, while it is recent and not dismissed.
+    in property <bool> has-latest;
+    in property <ReportRow> latest;
+    // Something was deleted here: an empty list says so.
+    in property <bool> cleared;
+    in property <string> failed;
+    in property <bool> developer;
+    in property <bool> detailed;
+    // What was just done, said once: "Copied: paste it in your message."
+    in property <string> said;
+    // A row being copied (its tick) or saved (its spinner).
+    in property <string> copied;
+    in property <string> saving;
+    // The logs' fold; the game's menu opens it.
+    in-out property <bool> open;
+
+    callback copy(string);
+    callback save(string);
+    callback delete(string);
+    callback delete-all();
+    callback dismiss();
+    callback open-folder();
+    callback set-detailed(bool);
+    callback open-issues();
+    callback open-discord();
+}
+
+// Rows shown before "Show all".
+global Shown {
+    out property <int> first: 6;
+}
+
+// A plain question under what it asks about, with its two answers.
+component Ask inherits Rectangle {
+    in property <string> text;
+    in property <string> yes;
+    in property <string> no;
+    callback answered(bool);
+    border-radius: Theme.radius-sm;
+    background: Theme.err.with-alpha(0.08);
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+        Text {
+            text: root.text;
+            color: Theme.text;
+            font-size: 13.5px;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            Button { text: root.yes; kind: ButtonKind.danger; compact: true; on-card: true; clicked => { root.answered(true); } }
+            Button { text: root.no; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { root.answered(false); } }
+        }
+    }
+}
+
+component Row inherits VerticalLayout {
+    in property <ReportRow> entry;
+    in-out property <string> asking;
+    spacing: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    HorizontalLayout {
+        spacing: 12px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.entry.crash ? Icons.warn : Icons.book;
+            colour: root.entry.crash ? Theme.err : Theme.dim;
+            size: 16px;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.entry.headline;
+                color: Theme.text;
+                font-weight: 600;
+                font-size: 13.5px;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                Text { text: root.entry.when; color: Theme.soft; font-size: 12.5px; }
+                if Help.developer: Text {
+                    text: root.entry.file;
+                    color: Theme.dim;
+                    font-family: "monospace";
+                    font-size: 11.5px;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        Button {
+            icon: Help.copied == root.entry.file ? Icons.check : Icons.copy;
+            kind: ButtonKind.quiet;
+            on-card: true;
+            compact: true;
+            accessible-label: "Copy the report: " + root.entry.headline + ", " + root.entry.when;
+            clicked => { Help.copy(root.entry.file); }
+        }
+        Button {
+            icon: Icons.save;
+            kind: ButtonKind.quiet;
+            on-card: true;
+            compact: true;
+            enabled: Help.saving != root.entry.file;
+            accessible-label: "Save the report as a file: " + root.entry.headline + ", " + root.entry.when;
+            clicked => { Help.save(root.entry.file); }
+        }
+        Button {
+            icon: Icons.trash;
+            kind: ButtonKind.danger;
+            on-card: true;
+            compact: true;
+            accessible-label: "Delete: " + root.entry.headline + ", " + root.entry.when;
+            clicked => { root.asking = root.asking == root.entry.file ? "" : root.entry.file; }
+        }
+    }
+    if root.asking == root.entry.file: Ask {
+        text: root.entry.crash ? "Delete this crash report? It can't be undone." : "Delete this log? It can't be undone.";
+        yes: "Delete";
+        no: "Keep it";
+        answered(yes) => {
+            if yes { Help.delete(root.entry.file); }
+            root.asking = "";
+        }
+    }
+}
+
+export component HelpBlock inherits Card {
+    // What is being asked about: a row's file, "all", or nothing.
+    property <string> asking;
+    property <bool> all: false;
+    VerticalLayout {
+        padding: 22px;
+        spacing: 14px;
+        HorizontalLayout {
+            spacing: 10px;
+            Text {
+                text: "Help";
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Theme.gold;
+                horizontal-stretch: 1;
+            }
+            if Help.has-latest: Rectangle {
+                height: 22px;
+                width: badge.preferred-width + 20px;
+                border-radius: 11px;
+                background: Theme.err.with-alpha(0.1);
+                badge := Text { text: "Crashed recently"; color: Theme.err; font-size: 12px; font-weight: 600; }
+            }
+        }
+
+        if Help.has-latest: VerticalLayout {
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 8px;
+                Icon { y: (parent.height - self.height) / 2; commands: Icons.warn; colour: Theme.err; size: 16px; }
+                Text { text: Help.latest.headline; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                Text { text: Help.latest.when; color: Theme.soft; font-size: 13px; vertical-alignment: center; horizontal-stretch: 1; }
+            }
+            Text {
+                text: "Your saves are kept. To help us fix it, send us the report in a GitHub issue or on Discord, and say what you were doing.";
+                color: Theme.body;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                Button {
+                    text: Help.copied == Help.latest.file ? "Copied" : "Copy report";
+                    icon: Help.copied == Help.latest.file ? Icons.check : Icons.copy;
+                    compact: true;
+                    on-card: true;
+                    clicked => { Help.copy(Help.latest.file); }
+                }
+                Button {
+                    text: "Save report";
+                    icon: Icons.save;
+                    compact: true;
+                    on-card: true;
+                    enabled: Help.saving != Help.latest.file;
+                    clicked => { Help.save(Help.latest.file); }
+                }
+                Button { text: "GitHub issue"; icon: Icons.external; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Help.open-issues(); } }
+                Button { text: "Discord"; icon: Icons.external; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Help.open-discord(); } }
+                Button { text: "Dismiss"; kind: ButtonKind.quiet; compact: true; on-card: true; clicked => { Help.dismiss(); } }
+            }
+            Rule { }
+        }
+
+        // The fold: its line, then the list.
+        Rectangle {
+            fold-area := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { Help.open = !Help.open; }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: Help.open ? Icons.down : Icons.next;
+                    colour: Theme.lav;
+                    size: 12px;
+                }
+                Text {
+                    text: "Logs and crash reports" + (!Help.read ? "" : Help.rows.length > 0 ? ": " + Help.count : ": none yet");
+                    color: fold-area.has-hover ? Theme.text : Theme.lav;
+                    font-weight: 600;
+                    font-size: 14px;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        if Help.open: VerticalLayout {
+            padding-left: 14px;
+            spacing: 10px;
+            Text {
+                text: "The game keeps a log each time you play, and writes a report when it crashes. If something goes wrong, copy or save one and send it to us.";
+                color: Theme.soft;
+                font-size: 13.5px;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: start;
+                Button { text: "Open folder"; icon: Icons.folder; compact: true; on-card: true; clicked => { Help.open-folder(); } }
+                if Help.rows.length > 0: Button {
+                    text: "Delete all";
+                    icon: Icons.trash;
+                    kind: ButtonKind.danger;
+                    compact: true;
+                    on-card: true;
+                    clicked => { root.asking = root.asking == "all" ? "" : "all"; }
+                }
+            }
+            if root.asking == "all": Ask {
+                text: "Delete all " + Help.rows.length + " logs and crash reports of this game? They can't be undone. Your saves are not touched.";
+                yes: "Delete all";
+                no: "Keep them";
+                answered(yes) => {
+                    if yes { Help.delete-all(); }
+                    root.asking = "";
+                }
+            }
+            if !Help.read: HorizontalLayout {
+                spacing: 10px;
+                Spinner { size: 16px; }
+                Text { text: "Reading the logs…"; color: Theme.soft; vertical-alignment: center; }
+            }
+            if Help.read && Help.rows.length == 0: Rectangle {
+                border-radius: Theme.radius;
+                background: Theme.panel-hi;
+                VerticalLayout {
+                    padding: 14px;
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    Text {
+                        text: Help.cleared
+                            ? "All cleared. A new log is kept here each time you play, and if the game ever crashes, its report too."
+                            : "Nothing here yet. After you play, each session is listed here, and if the game ever crashes, its report too, ready to send to us.";
+                        color: Theme.soft;
+                        font-size: 13.5px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            if Help.read && Help.rows.length == 0 && Help.failed != "" && Help.developer: Text {
+                text: Help.failed;
+                color: Theme.dim;
+                font-family: "monospace";
+                font-size: 11.5px;
+                wrap: word-wrap;
+            }
+            VerticalLayout {
+                for row[i] in Help.rows: VerticalLayout {
+                    if root.all || i < Shown.first: VerticalLayout {
+                        Rule { }
+                        Row { entry: row; asking <=> root.asking; }
+                    }
+                }
+            }
+            if Help.rows.length > Shown.first: HorizontalLayout {
+                alignment: start;
+                Button {
+                    text: root.all ? "Show fewer" : "Show all " + Help.rows.length;
+                    kind: ButtonKind.quiet;
+                    compact: true;
+                    on-card: true;
+                    clicked => { root.all = !root.all; }
+                }
+            }
+        }
+
+        if Help.said != "": Text {
+            text: Help.said;
+            color: Theme.ok;
+            font-size: 13px;
+            wrap: word-wrap;
+        }
+
+        Rule { }
+        CheckBox {
+            text: "Detailed logs";
+            checked: Help.detailed;
+            toggled(on) => { Help.set-detailed(on); }
+        }
+        HorizontalLayout {
+            padding-left: 28px;
+            Text {
+            text: "Turn this on when we ask you to: the game writes more about what it does.";
+            color: Theme.soft;
+            font-size: 12.5px;
+            wrap: word-wrap;
+            }
+        }
+    }
+}

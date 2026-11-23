@@ -10,6 +10,7 @@ use openrac_launcher_service::{player_state, player_version, Change, Launcher, N
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::pages::game::{self, GameState};
+use crate::pages::help::{self, HelpState};
 use crate::toasts::Toasts;
 use crate::{art, theme, App, AppWindow, Games, Page, SideEntry, Tone};
 
@@ -20,6 +21,7 @@ pub struct Shell {
     /// The answer a question over the window waits for.
     asked: RefCell<Option<Sender<bool>>>,
     pub game: GameState,
+    pub help: HelpState,
 }
 
 thread_local! {
@@ -42,6 +44,7 @@ pub fn install(window: &AppWindow) {
         toasts: Rc::default(),
         asked: RefCell::default(),
         game: GameState::default(),
+        help: HelpState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -57,6 +60,7 @@ pub fn install(window: &AppWindow) {
     app.on_open_page(|page| with(|s| s.open_page(page)));
     window.global::<Games>().on_pick(|key| with(|s| s.pick_version(&key)));
     game::install(window);
+    help::install(window);
 }
 
 impl Shell {
@@ -177,6 +181,7 @@ impl Shell {
         }
         games_ui.set_entries(ModelRc::new(VecModel::from(entries)));
         self.show_game();
+        self.show_help();
     }
 
     /// The picked game's page, as the launcher knows it now.
@@ -186,8 +191,12 @@ impl Shell {
         self.game.show(&self.window, launcher, &key);
     }
 
+    pub fn show_help(&self) {
+        self.help.show(self);
+    }
+
     /// What the game's page reads from files (mods on, last played), off the window's thread.
-    fn read_game_details(&self) {
+    pub fn read_game_details(&self) {
         let Some(launcher) = self.launcher() else { return };
         let key = self.window.global::<Games>().get_selected();
         self.game.read_details(launcher, &key);
@@ -203,6 +212,7 @@ impl Shell {
 
     fn pick_version(&self, key: &str) {
         self.window.global::<Games>().set_selected(key.into());
+        self.help.reset(&self.window);
         self.apply_theme();
         self.follow_view();
         self.show_game();

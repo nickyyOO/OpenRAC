@@ -6,6 +6,10 @@ export component Scroll inherits Rectangle {
     // The page has scrolled from its top (the header's haze shows then).
     out property <bool> scrolled: flick.content-y < -1px;
     in-out property <length> top <=> flick.content-y;
+    // Brings `y` (from the page's top) to the top of the view, as far as the page goes.
+    public function show(y: length) {
+        flick.content-y = clamp(-y, min(0px, flick.height - flick.content-height), 0px);
+    }
     flick := Flickable {
         width: parent.width;
         height: parent.height;

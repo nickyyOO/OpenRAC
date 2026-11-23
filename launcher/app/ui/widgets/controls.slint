@@ -83,12 +83,6 @@ export component Button inherits Rectangle {
     accessible-enabled: enabled;
     accessible-action-default => { if enabled { clicked(); } }
 
-    area := TouchArea {
-        enabled: root.enabled;
-        mouse-cursor: root.enabled ? pointer : default;
-        clicked => { root.clicked(); }
-    }
-
     // Focus reached by Tab shows its outline; a click does not.
     property <bool> tabbed: false;
     focus := FocusScope {
@@ -101,6 +95,13 @@ export component Button inherits Rectangle {
             }
             reject
         }
+    }
+
+    // Over the focus scope: a click reaches it.
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
     }
 
     // The focus outline.
@@ -183,39 +184,47 @@ export component Switch inherits Rectangle {
 }
 
 // A check box with its words beside it.
-export component CheckBox inherits HorizontalLayout {
+export component CheckBox inherits Rectangle {
     in-out property <bool> checked;
     in property <string> text;
     in property <bool> enabled: true;
     callback toggled(bool);
-    spacing: 10px;
-    alignment: start;
-    box := Rectangle {
-        width: 18px;
-        height: 18px;
-        y: (parent.height - self.height) / 2;
-        border-radius: Theme.radius-xs;
-        background: root.checked ? Theme.amber : Theme.ink-deep;
-        border-width: root.checked ? 0 : 1.5px;
-        border-color: Theme.dim;
-        if root.checked: Icon {
-            commands: "M5 12.5l4.5 4.5L19 7.5";
-            colour: Theme.on-amber;
-            size: 14px;
-        }
-    }
-    if root.text != "": Text {
-        text: root.text;
-        color: Theme.text;
-        font-size: Theme.size-body;
-        vertical-alignment: center;
-    }
-    TouchArea {
+    opacity: enabled ? 1 : 0.45;
+    accessible-role: checkbox;
+    accessible-checkable: true;
+    accessible-checked: checked;
+    accessible-label: text;
+    accessible-action-default => { if enabled { checked = !checked; toggled(checked); } }
+    area := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => {
             root.checked = !root.checked;
             root.toggled(root.checked);
+        }
+    }
+    HorizontalLayout {
+        spacing: 10px;
+        alignment: start;
+        Rectangle {
+            width: 18px;
+            height: 18px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-xs;
+            background: root.checked ? Theme.amber : Theme.ink-deep;
+            border-width: root.checked ? 0 : 1.5px;
+            border-color: area.has-hover ? Theme.soft : Theme.dim;
+            if root.checked: Icon {
+                commands: "M5 12.5l4.5 4.5L19 7.5";
+                colour: Theme.on-amber;
+                size: 14px;
+            }
+        }
+        if root.text != "": Text {
+            text: root.text;
+            color: Theme.text;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
         }
     }
 }
