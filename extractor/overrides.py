@@ -107,7 +107,10 @@ MODELS_SINCE = 2
 FILES = re.compile(r"^(?:patches\.tsv|virtual\.tsv|audio/[0-9a-f]{16}\.wav|level_\d{2}/(?:textures/[A-Za-z0-9_.-]+\.png|(?:mobys|ties|shrubs)/"
                    r"[A-Za-z0-9_.-]+\.glb|terrain\.glb|placements\.json|gameplay_(?:" + "|".join(VERSIONS) + r")\.wad"
                    r"|(?:core|index|data)_(?:" + "|".join(VERSIONS) + r")\.bin"
-                   r"|header_(?:" + "|".join(VERSIONS) + r")\.bin))$")
+                   r"|header_(?:" + "|".join(VERSIONS) + r")\.bin"
+                   # What OpenRAC Editor packs beside the placements: imported classes and their
+                   # levels' tables (port foreign_class.c), and simple moves (editor-runtime mod).
+                   r"|classes\.tsv|classes/\d{1,4}\.bin|worlds\.bin|behaviours\.json))$")
 TEXTURE = re.compile(r"^level_(\d{2})/textures/([A-Za-z0-9_.-]+)\.png$")
 MODEL = re.compile(r"^level_(\d{2})/(moby|tie|shrub)s/\2_(\d+)\.glb$")
 TERRAIN = re.compile(r"^level_(\d{2})/terrain\.glb$")

@@ -102,6 +102,18 @@ class PackTests(unittest.TestCase):
         self.assertEqual(overrides.describe(used),
                          {"level_00": {"models": ["moby_0"], "textures": ["moby_0001"]}})
 
+    def test_a_level_keeps_its_imported_classes_and_moves(self):
+        # What OpenRAC Editor packs beside the placements: imported classes, their levels' tables,
+        # and the editor-runtime mod's moves.
+        pack = write_pack(self.root / "planet", "A planet", {
+            "level_11/classes.tsv": b"827\t6\n", "level_11/classes/827.bin": b"\0" * 16,
+            "level_11/worlds.bin": b"ORWD", "level_11/behaviours.json": b'{"format": 1, "mobys": []}',
+            "level_11/classes/notes.txt": b"?"})
+        _, used, ignored, _ = overrides.check(pack)
+        self.assertEqual(used, ["level_11/behaviours.json", "level_11/classes.tsv", "level_11/classes/827.bin",
+                                "level_11/worlds.bin"])
+        self.assertEqual(ignored, ["level_11/classes/notes.txt"])
+
     def test_models_of_levels_before_the_metal_packets_are_flagged(self):
         for made, flagged in ((1, True), (2, False), (overrides.LEVELS_FORMAT, False)):
             pack = write_pack(self.root / f"made-{made}", "Old", {"level_00/mobys/moby_0.glb": glb()},
