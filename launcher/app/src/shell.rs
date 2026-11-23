@@ -9,6 +9,7 @@ use openrac_launcher_service::core::library::GameView;
 use openrac_launcher_service::{player_state, player_version, Change, Launcher, Notice, Situation, Tone as PlayerTone};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::pages::activity::{self, ActivityState};
 use crate::pages::differences::{self, DifferencesState};
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
@@ -28,6 +29,7 @@ pub struct Shell {
     pub saves: SavesState,
     pub stopped: StoppedState,
     pub differences: DifferencesState,
+    pub activity: ActivityState,
 }
 
 thread_local! {
@@ -54,6 +56,7 @@ pub fn install(window: &AppWindow) {
         saves: SavesState::default(),
         stopped: StoppedState::default(),
         differences: DifferencesState::default(),
+        activity: ActivityState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -73,6 +76,7 @@ pub fn install(window: &AppWindow) {
     saves::install(window);
     stopped::install(window);
     differences::install(window);
+    activity::install(window);
     #[cfg(not(target_os = "android"))]
     crate::pages::shortcuts::install(window);
 }
@@ -146,6 +150,7 @@ impl Shell {
         let page = if page == Page::Activity && app.get_developer() { Page::Develop } else { page };
         app.set_page(page);
         self.follow_view();
+        self.show_activity();
     }
 
     // ---- what each part shows ------------------------------------------------------------------
@@ -221,6 +226,10 @@ impl Shell {
         self.saves.read(launcher, serial);
     }
 
+    pub fn show_activity(&self) {
+        self.activity.show(self);
+    }
+
     pub fn show_differences(&self) {
         self.differences.show(self);
     }
@@ -253,6 +262,7 @@ impl Shell {
         app.set_pending_jobs(launcher.pending_jobs() as i32);
         self.library_changed();
         self.show_differences();
+        self.show_activity();
     }
 
     fn pick_version(&self, key: &str) {

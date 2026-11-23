@@ -610,8 +610,8 @@ export component GameView inherits Rectangle {
                 if GamePage.coming: Coming { }
                 below := HorizontalLayout {
                     spacing: 20px;
-                    if GamePage.set-up || !GamePage.coming: SavesBlock { horizontal-stretch: 4; }
-                    if GamePage.set-up: HelpBlock { horizontal-stretch: 3; }
+                    if GamePage.set-up || !GamePage.coming: SavesBlock { horizontal-stretch: 4; preferred-width: 0px; }
+                    if GamePage.set-up: HelpBlock { horizontal-stretch: 3; preferred-width: 0px; }
                 }
                 if !GamePage.coming && (Shortcuts.steam-shown || Shortcuts.desktop-shown): ShortcutsBlock { }
                 if !GamePage.coming && Differences.shown: DifferencesBlock { }

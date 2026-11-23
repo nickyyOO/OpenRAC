@@ -27,7 +27,10 @@ pub use player::{
     action, failed_step, found_disc, has_port, is_built, is_playing, missing_program, play_warning, player_state,
     player_version, rebuild_steps, update_step, Icon, PlayerKind, PlayerState, Situation, Tone, UpdateStep,
 };
-pub use progress::{is_play, phase_label, read_progress, summarize, tail_lines, JobSummary, Pace, Progress};
+pub use progress::{
+    elapsed, is_play, job_duration, job_line, job_transcript, phase_label, read_progress, summarize, tail_lines,
+    JobSummary, Pace, Progress,
+};
 pub use queue::{Job, JobState, Line};
 pub use saves::{backup_label, empty_slots, Card};
 pub use stopped::{crash_after_update, crash_mods_line, stop_text, StoppedMods};

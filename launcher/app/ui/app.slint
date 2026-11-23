@@ -18,8 +18,9 @@ import { Shortcuts } from "pages/shortcuts.slint";
 import { Differences, DiffGroup, DiffRow } from "pages/differences.slint";
 import { Icons } from "widgets/icon.slint";
 import { Placeholder } from "pages/placeholder.slint";
+import { Activity, ActivityPage, JobRow } from "pages/activity.slint";
 
-export { Theme, App, Page, SideEntry, Toast, Links, Games, GamePage, DiscOption, FolderPrompt, PlayerButton, JobStrip, Steps, GameNotice, MenuItem, Icons, Help, ReportRow, Saves, SlotRow, BackupRow, Stopped, RollBack, Shortcuts, Differences, DiffGroup, DiffRow }
+export { Theme, App, Page, SideEntry, Toast, Links, Games, GamePage, DiscOption, FolderPrompt, PlayerButton, JobStrip, Steps, GameNotice, MenuItem, Icons, Help, ReportRow, Saves, SlotRow, BackupRow, Stopped, RollBack, Shortcuts, Differences, DiffGroup, DiffRow, Activity, JobRow }
 
 export component AppWindow inherits Window {
     title: "OpenRAC Launcher";
@@ -64,7 +65,7 @@ export component AppWindow inherits Window {
         if App.page == Page.mods: Placeholder { title: "Mods"; }
         if App.page == Page.develop: Placeholder { title: "Develop"; }
         if App.page == Page.settings: Placeholder { title: "Settings"; }
-        if App.page == Page.activity: Placeholder { title: "Activity"; }
+        if App.page == Page.activity: ActivityPage { }
     }
 
     if App.asking: Ask { }

@@ -1,0 +1,189 @@
+// Activity: what the launcher did for the player's games, in words. Each job is a row: what it
+// does or did, how long it took, Stop while it runs; what it printed folds under "Show output".
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, ProgressBar, Spinner } from "../widgets/controls.slint";
+import { Scroll } from "../widgets/scroll.slint";
+
+export struct JobRow {
+    key: int,
+    title: string,
+    line: string,
+    time: string,
+    // "queued", "running", "succeeded", "failed", "cancelled".
+    state: string,
+    // A bar while it runs: its share, or below 0 when unknown.
+    bar: bool,
+    percent: float,
+    command: string,
+    // The last lines it printed, and how many are left out before them.
+    output: string,
+    cut: int,
+    open: bool,
+}
+
+export global Activity {
+    in property <[JobRow]> rows;
+    in property <bool> finished;
+    callback cancel(int);
+    callback clear();
+    callback copy(int);
+    callback set-open(int, bool);
+    callback open-games();
+}
+
+component JobCard inherits Card {
+    in property <JobRow> job;
+    background: job.state == "failed" ? Theme.panel.mix(Theme.err, 0.92) : Theme.panel;
+    VerticalLayout {
+        padding: 16px;
+        padding-left: 18px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 12px;
+            Rectangle {
+                width: 22px;
+                if root.job.state == "running": Spinner { size: 16px; }
+                if root.job.state == "succeeded": Icon { commands: Icons.check; colour: Theme.ok; size: 16px; }
+                if root.job.state == "failed": Icon { commands: Icons.warn; colour: Theme.err; size: 16px; }
+                if root.job.state == "cancelled": Icon { commands: Icons.x; colour: Theme.dim; size: 16px; }
+                if root.job.state == "queued": Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.dim; }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text { text: root.job.title; color: Theme.text; font-weight: 600; overflow: elide; }
+                Text { text: root.job.line; color: Theme.soft; font-size: 13px; wrap: word-wrap; }
+            }
+            Text { text: root.job.time; color: Theme.dim; font-size: 12.5px; vertical-alignment: center; }
+            if root.job.state == "running" || root.job.state == "queued": VerticalLayout {
+                alignment: center;
+                Button {
+                    text: root.job.state == "queued" ? "Don't run" : "Stop";
+                    icon: Icons.x;
+                    compact: true;
+                    on-card: true;
+                    clicked => { Activity.cancel(root.job.key); }
+                }
+            }
+        }
+        if root.job.bar && root.job.state == "running": ProgressBar { percent: root.job.percent; }
+        if root.job.command != "" || root.job.output != "": Rectangle {
+            fold-area := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { Activity.set-open(root.job.key, !root.job.open); }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: root.job.open ? Icons.down : Icons.next;
+                    colour: Theme.lav;
+                    size: 12px;
+                }
+                Text {
+                    text: "Show output";
+                    color: fold-area.has-hover ? Theme.text : Theme.lav;
+                    font-weight: 600;
+                    font-size: 13.5px;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        if root.job.open: VerticalLayout {
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: root.job.command;
+                    color: Theme.dim;
+                    font-family: "monospace";
+                    font-size: 11.5px;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                Button { text: "Copy"; compact: true; on-card: true; clicked => { Activity.copy(root.job.key); } }
+            }
+            if root.job.cut > 0: Text {
+                text: "The first " + root.job.cut + " lines are left out here; Copy takes them all.";
+                color: Theme.dim;
+                font-size: 12px;
+            }
+            Rectangle {
+                border-radius: Theme.radius-xs;
+                background: Theme.ink-deep;
+                VerticalLayout {
+                    padding: 10px;
+                    Text {
+                        text: root.job.output == "" ? "Nothing has been printed yet." : root.job.output;
+                        color: Theme.soft;
+                        font-family: "monospace";
+                        font-size: 11.5px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ActivityPage inherits Rectangle {
+    out property <bool> scrolled: scroll.scrolled;
+    scroll := Scroll {
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                width: min(root.width - 56px, 900px);
+                alignment: start;
+                padding-top: 28px;
+                padding-bottom: 60px;
+                spacing: 14px;
+                HorizontalLayout {
+                    Text {
+                        text: "Activity";
+                        font-family: Theme.head;
+                        font-weight: 700;
+                        font-size: Theme.size-h1;
+                        color: Theme.gold;
+                        horizontal-stretch: 1;
+                    }
+                    if Activity.finished: VerticalLayout {
+                        alignment: center;
+                        Button { text: "Clear finished"; kind: ButtonKind.quiet; compact: true; clicked => { Activity.clear(); } }
+                    }
+                }
+                Text {
+                    text: "What the launcher did for your games: setting them up, building them, playing them.";
+                    color: Theme.soft;
+                    wrap: word-wrap;
+                }
+                if Activity.rows.length == 0: Card {
+                    HorizontalLayout {
+                        padding: 20px;
+                        padding-left: 22px;
+                        spacing: 16px;
+                        Icon { y: (parent.height - self.height) / 2; commands: Icons.terminal; colour: Theme.soft; size: 22px; }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Text { text: "Nothing has run yet"; font-family: Theme.head; font-weight: 700; font-size: 16px; color: Theme.gold; }
+                            Text {
+                                text: "When the launcher sets a game up, builds it or starts it, what it did shows here.";
+                                color: Theme.body;
+                                font-size: 13.5px;
+                                wrap: word-wrap;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Button { text: "Your games"; icon: Icons.library; on-card: true; clicked => { Activity.open-games(); } }
+                        }
+                    }
+                }
+                for job in Activity.rows: JobCard { job: job; }
+            }
+        }
+    }
+}

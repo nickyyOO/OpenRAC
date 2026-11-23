@@ -86,8 +86,8 @@ export component Menu inherits Rectangle {
                 for item in root.items: Row {
                     item: item;
                     chosen => {
-                        popup.close();
                         root.chosen(item.id);
+                        popup.close();
                     }
                 }
             }

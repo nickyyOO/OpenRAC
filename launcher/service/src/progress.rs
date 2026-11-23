@@ -304,6 +304,63 @@ pub fn summarize(job: &Job, pace: &mut Pace) -> JobSummary {
     summary
 }
 
+/// Milliseconds as "4 s", "2 min 05 s", "1 h 03 min".
+pub fn elapsed(ms: u64) -> String {
+    let s = (ms as f64 / 1000.0).round() as u64;
+    let m = s / 60;
+    match (s, m) {
+        (s, _) if s < 60 => format!("{s} s"),
+        (s, m) if m < 60 => format!("{m} min {:02} s", s % 60),
+        (_, m) => format!("{} h {:02} min", m / 60, m % 60),
+    }
+}
+
+/// How long a job ran, or has run until now: "2 min 05 s". Empty before it starts.
+pub fn job_duration(job: &Job) -> String {
+    job.started_at.map(|start| elapsed(job.ended_at.unwrap_or_else(now_ms).saturating_sub(start))).unwrap_or_default()
+}
+
+/// A job's command and everything it printed, one line each: what Copy puts on the clipboard.
+pub fn job_transcript(job: &Job) -> String {
+    std::iter::once(format!("$ {}", job.command))
+        .chain(job.lines.iter().map(|l| l.text.clone()))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// One line under a job's name in Activity: the step it is on, or how it ended.
+pub fn job_line(job: &Job) -> String {
+    match job.state {
+        JobState::Queued | JobState::Running => {
+            let progress = read_progress(&job.action_id, &job.lines);
+            let how = match (progress.percent, progress.note) {
+                (Some(p), _) => format!(" · {} %", p.round()),
+                (None, Some(note)) => format!(" · {note}"),
+                (None, None) => String::new(),
+            };
+            format!("{}{how}", phase_label(job))
+        }
+        JobState::Succeeded => {
+            let id = job.action_id.as_str();
+            if id.starts_with("install:") {
+                return "Set up from your disc.".into();
+            }
+            match id {
+                "port-build" => "Built the game for this computer.",
+                "port-levels" => "Read the levels from your disc.",
+                "port-levels-check" => "Checked the levels: the game can draw every one.",
+                "play" | "play-edited" => "Played.",
+                _ => "Done.",
+            }
+            .into()
+        }
+        JobState::Cancelled => "Stopped before it finished.".into(),
+        // The game ended by itself: it may have crashed or been closed. Its page says which.
+        JobState::Failed if is_play(&job.action_id) => "The game stopped. Its page has what happened.".into(),
+        JobState::Failed => "It did not finish. Copy what it printed and send it to us on GitHub or Discord.".into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -338,6 +395,13 @@ mod tests {
         assert!(parse_progress("openrac-progress: read 11/10").is_none());
         assert!(parse_progress("openrac-progress: dance").is_none());
         assert!(parse_progress("openrac-progress: pack").is_some());
+    }
+
+    #[test]
+    fn elapsed_reads_short() {
+        assert_eq!(elapsed(4_000), "4 s");
+        assert_eq!(elapsed(125_000), "2 min 05 s");
+        assert_eq!(elapsed(3_780_000), "1 h 03 min");
     }
 
     #[test]
