@@ -1,0 +1,697 @@
+// Settings: where things are, how the launcher looks and talks to the world, and the advanced
+// switches folded under one line. Edits stay a draft until Save, in the bar at the window's foot
+// (Android saves by itself). With `setup`, the first run: one question, and what was found, folded.
+
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "../widgets/icon.slint";
+import { Button, ButtonKind, Card, Field, Rule, Spinner, Switch } from "../widgets/controls.slint";
+import { Setting } from "../widgets/setting.slint";
+import { Scroll } from "../widgets/scroll.slint";
+import { Logo } from "../widgets/logo.slint";
+
+// A folder or a program the launcher uses.
+export struct PathRow {
+    id: string,
+    label: string,
+    hint: string,
+    value: string,
+    // "", "checking", "ok", "bad".
+    state: string,
+    message: string,
+    // Say what a good one was found to be (a contributor's detail).
+    detail: bool,
+    folder: bool,
+    // What detection found, to pick with one press.
+    found: [string],
+    // Where to get it while it is not set: "Get Python".
+    get-label: string,
+    get-url: string,
+}
+
+export struct ThemeChoice {
+    id: string,
+    name: string,
+    ink: color,
+    panel: color,
+    text: color,
+}
+
+export global Settings {
+    in property <bool> setup;
+    // Fields typed into are set again from here only when this changes (discard, browse, reset).
+    in property <int> revision;
+    in property <bool> changed;
+    in property <bool> saving;
+    // Why the draft cannot be saved yet.
+    in property <string> blocked;
+    in property <bool> auto-save;
+
+    in property <[PathRow]> games-paths;
+    in property <[PathRow]> program-paths;
+    in property <[PathRow]> dev-paths;
+    in property <[PathRow]> setup-ask;
+    in property <[PathRow]> setup-found;
+    in property <string> found-line;
+    in property <bool> can-start;
+
+    in property <[ThemeChoice]> themes;
+    in property <string> theme;
+    in property <bool> game-colors;
+    in property <bool> discord-shown;
+    in property <bool> discord-rpc;
+    in property <bool> steam-shown;
+    in property <string> steam-line;
+    in property <string> steam-button;
+    in property <bool> steam-enabled;
+    in property <bool> steam-busy;
+    in property <bool> name-shown;
+    in property <string> name;
+    in property <string> name-note;
+    in property <bool> name-bad;
+    in property <bool> server-shown;
+    in property <string> host;
+    in property <string> port;
+    in property <string> server-note;
+    in property <bool> server-bad;
+    in property <bool> official;
+    in property <bool> testing;
+    in property <string> tested;
+    in property <bool> tested-ok;
+
+    in property <bool> updates;
+    in property <bool> check-updates;
+    in property <bool> check-mod-updates;
+    in property <bool> auto-update-mods;
+    in property <bool> cleanup-deps;
+
+    in-out property <bool> advanced-open;
+    in property <bool> detailed-log;
+    in property <bool> renderer-shown;
+    in property <string> renderer;
+    in property <string> renderer-label;
+    in property <bool> editor-advanced;
+    in property <bool> developer;
+    in property <bool> incremental;
+    in property <bool> rac3;
+    in property <string> discord-id;
+    in property <string> system;
+    in property <string> config-file;
+    in property <string> version;
+
+    callback set-flag(string, bool);
+    callback set-text(string, string);
+    callback set-path(string, string);
+    callback browse(string);
+    callback pick-theme(string);
+    callback test-server();
+    callback reset-server();
+    callback add-to-steam();
+    callback save();
+    callback discard();
+    callback start();
+    callback open-url(string);
+}
+
+// A text field the player types in: it starts from `value`, and takes it again when the
+// settings' revision changes.
+component TypedField inherits Field {
+    in property <string> value;
+    in property <int> revision: Settings.revision;
+    init => { self.text = self.value; }
+    changed revision => { self.text = self.value; }
+}
+
+component Heading inherits Text {
+    font-family: Theme.head;
+    font-weight: 700;
+    font-size: Theme.size-h2;
+    color: Theme.gold;
+}
+
+component Note inherits Text {
+    in property <bool> bad;
+    color: bad ? Theme.warn : Theme.soft;
+    font-size: 12.5px;
+    wrap: word-wrap;
+}
+
+component Link inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked();
+    width: words.preferred-width;
+    height: words.preferred-height;
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    words := Text {
+        text: root.text;
+        color: !root.enabled ? Theme.dim : area.has-hover ? Theme.text : Theme.lav;
+        font-size: 13px;
+        font-weight: 600;
+    }
+}
+
+component PathSetting inherits VerticalLayout {
+    in property <PathRow> entry;
+    spacing: 6px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    HorizontalLayout {
+        spacing: 8px;
+        Text { text: root.entry.label; color: Theme.text; font-weight: 600; horizontal-stretch: 1; }
+        if root.entry.state == "checking": Spinner { size: 14px; }
+        if root.entry.state == "ok": HorizontalLayout {
+            horizontal-stretch: 0;
+            spacing: 4px;
+            Icon { y: (parent.height - self.height) / 2; commands: Icons.check; colour: Theme.ok; size: 13px; }
+            Text { text: "Found"; color: Theme.ok; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+        }
+        if root.entry.state == "bad": Text { text: "Problem"; color: Theme.err; font-size: 12px; font-weight: 600; }
+    }
+    Note { text: root.entry.hint; }
+    HorizontalLayout {
+        spacing: 6px;
+        TypedField {
+            value: root.entry.value;
+            placeholder: "Not set";
+            edited(text) => { Settings.set-path(root.entry.id, text); }
+        }
+        Button {
+            text: "Browse";
+            icon: Icons.folder;
+            compact: true;
+            on-card: true;
+            clicked => { Settings.browse(root.entry.id); }
+        }
+        if root.entry.value != "": Button {
+            icon: Icons.x;
+            compact: true;
+            on-card: true;
+            kind: ButtonKind.quiet;
+            accessible-label: "Clear " + root.entry.label;
+            clicked => { Settings.set-path(root.entry.id, ""); }
+        }
+    }
+    if root.entry.state == "bad": Text { text: root.entry.message; color: Theme.err; font-size: 12.5px; wrap: word-wrap; }
+    if root.entry.state == "ok" && root.entry.detail: Note { text: root.entry.message; color: Theme.dim; }
+    if root.entry.found.length > 0: HorizontalLayout {
+        spacing: 6px;
+        alignment: start;
+        Text { text: "Found:"; color: Theme.dim; font-size: 12.5px; vertical-alignment: center; }
+        for path in root.entry.found: Button {
+            text: path;
+            compact: true;
+            on-card: true;
+            kind: ButtonKind.quiet;
+            clicked => { Settings.set-path(root.entry.id, path); }
+        }
+    }
+    if root.entry.value == "" && root.entry.get-label != "": HorizontalLayout {
+        spacing: 4px;
+        alignment: start;
+        Text { text: "Not there yet?"; color: Theme.dim; font-size: 13px; }
+        Link { text: root.entry.get-label; clicked => { Settings.open-url(root.entry.get-url); } }
+        Text { text: ", then choose it here."; color: Theme.dim; font-size: 13px; }
+    }
+}
+
+component Paths inherits VerticalLayout {
+    in property <[PathRow]> rows;
+    for entry[i] in root.rows: VerticalLayout {
+        if i > 0: Rule { }
+        PathSetting { entry: entry; }
+    }
+}
+
+component Section inherits Card {
+    in property <string> title;
+    VerticalLayout {
+        alignment: start;
+        padding: 22px;
+        padding-top: 18px;
+        spacing: 4px;
+        if root.title != "": Heading { text: root.title; }
+        @children
+    }
+}
+
+component Fold inherits Rectangle {
+    in property <string> text;
+    in property <string> line;
+    in-out property <bool> open;
+    height: row.preferred-height;
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.open = !root.open; }
+    }
+    row := HorizontalLayout {
+        spacing: 8px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.open ? Icons.down : Icons.next;
+            colour: Theme.gold;
+            size: 14px;
+        }
+        Heading { text: root.text; color: area.has-hover ? Theme.text : Theme.gold; }
+        Text { text: root.line; color: Theme.dim; font-size: 13px; vertical-alignment: center; overflow: elide; horizontal-stretch: 1; }
+    }
+}
+
+component SwitchSetting inherits Setting {
+    in property <string> id;
+    in property <bool> on;
+    in property <bool> enabled: true;
+    Switch {
+        checked: root.on;
+        enabled: root.enabled;
+        label: root.title;
+        toggled(on) => { Settings.set-flag(root.id, on); }
+    }
+}
+
+component Segments inherits HorizontalLayout {
+    in property <[string]> labels;
+    in property <[string]> ids;
+    in property <string> chosen;
+    callback picked(string);
+    spacing: 4px;
+    for label[i] in root.labels: Button {
+        text: label;
+        compact: true;
+        on-card: true;
+        kind: root.ids[i] == root.chosen ? ButtonKind.primary : ButtonKind.plain;
+        clicked => { root.picked(root.ids[i]); }
+    }
+}
+
+component ThemeButton inherits Rectangle {
+    in property <ThemeChoice> choice;
+    in property <bool> on;
+    callback clicked();
+    width: max(112px, name.preferred-width + 20px);
+    height: 92px;
+    border-radius: Theme.radius-sm;
+    border-width: on ? 2px : 1px;
+    border-color: on ? Theme.amber : area.has-hover ? Theme.line-strong : Theme.line;
+    background: Theme.control-card;
+    accessible-role: button;
+    accessible-label: root.choice.name;
+    accessible-checked: root.on;
+    accessible-action-default => { root.clicked(); }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
+        Rectangle {
+            height: 48px;
+            border-radius: Theme.radius-xs;
+            background: root.choice.ink;
+            Rectangle {
+                x: 8px;
+                y: 8px;
+                width: parent.width - 16px;
+                height: parent.height - 16px;
+                border-radius: 3px;
+                background: root.choice.panel;
+                Rectangle { x: 8px; y: 8px; width: 40%; height: 4px; border-radius: 2px; background: root.choice.text; }
+                Rectangle { x: 8px; y: 17px; width: 60%; height: 3px; border-radius: 1.5px; background: root.choice.text.with-alpha(0.5); }
+            }
+        }
+        name := Text {
+            text: root.choice.name;
+            color: root.on ? Theme.text : Theme.soft;
+            font-size: 12.5px;
+            font-weight: root.on ? 600 : 400;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component Server inherits VerticalLayout {
+    spacing: 6px;
+    padding-top: 12px;
+    padding-bottom: 6px;
+    Text { text: "Multiplayer server"; color: Theme.text; font-weight: 600; }
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: start;
+        TypedField {
+            width: 280px;
+            value: Settings.host;
+            placeholder: "hub.openrac.dev";
+            edited(text) => { Settings.set-text("host", text); }
+        }
+        Text { text: ":"; color: Theme.dim; vertical-alignment: center; }
+        TypedField {
+            width: 90px;
+            value: Settings.port;
+            placeholder: "7177";
+            edited(text) => { Settings.set-text("port", text); }
+        }
+    }
+    Note { text: Settings.server-note; bad: Settings.server-bad; }
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: start;
+        Link { text: "Reset to official"; enabled: !Settings.official; clicked => { Settings.reset-server(); } }
+        Text { text: "·"; color: Theme.dim; font-size: 13px; }
+        Link { text: "Test connection"; enabled: !Settings.server-bad && !Settings.testing; clicked => { Settings.test-server(); } }
+        if Settings.testing: Text { text: "· Connecting…"; color: Theme.soft; font-size: 13px; }
+        if !Settings.testing && Settings.tested != "": Text {
+            text: "· " + Settings.tested;
+            color: Settings.tested-ok ? Theme.ok : Theme.err;
+            font-size: 13px;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+    }
+}
+
+component Welcome inherits VerticalLayout {
+    spacing: 14px;
+    Card {
+        HorizontalLayout {
+            padding: 26px;
+            spacing: 22px;
+            Logo { mark-only: true; size: 72px; }
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                Text {
+                    text: "Welcome to OpenRAC";
+                    font-family: Theme.head;
+                    font-weight: 700;
+                    font-size: Theme.size-h1;
+                    color: Theme.gold;
+                }
+                Text { text: "Play the Ratchet & Clank games natively, with your own discs."; color: Theme.body; wrap: word-wrap; }
+            }
+        }
+    }
+    Section {
+        if Settings.games-paths.length > 0: Heading { text: "Where are your PS2 disc images?"; }
+        Paths { rows: Settings.games-paths; }
+        Paths { rows: Settings.setup-ask; }
+    }
+    Section {
+        title: "";
+        found-fold := Fold { text: "Found for you"; line: Settings.found-line; }
+        if found-fold.open: Paths { rows: Settings.setup-found; }
+    }
+    HorizontalLayout {
+        alignment: end;
+        spacing: 12px;
+        if !Settings.can-start: Text { text: "Choose your OpenRAC folder to start."; color: Theme.dim; font-size: 13px; vertical-alignment: center; }
+        Button {
+            text: Settings.saving ? "Starting…" : "Start";
+            kind: ButtonKind.primary;
+            enabled: Settings.can-start && !Settings.saving;
+            clicked => { Settings.start(); }
+        }
+    }
+}
+
+component Everything inherits VerticalLayout {
+    spacing: 14px;
+    Text {
+        text: "Settings";
+        font-family: Theme.head;
+        font-weight: 700;
+        font-size: Theme.size-h1;
+        color: Theme.gold;
+    }
+    if Settings.games-paths.length > 0: Section {
+        title: "Your games";
+        Paths { rows: Settings.games-paths; }
+    }
+    Section {
+        title: "General";
+        VerticalLayout {
+            spacing: 10px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: "Theme"; color: Theme.text; font-weight: 600; }
+                Note { text: "The launcher's colours. Its accent is the game's."; }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                for choice in Settings.themes: ThemeButton {
+                    choice: choice;
+                    on: choice.id == Settings.theme;
+                    clicked => { Settings.pick-theme(choice.id); }
+                }
+            }
+        }
+        Rule { }
+        SwitchSetting {
+            id: "game-colors";
+            title: "Game colours";
+            line: "The bar, buttons and panels in the picked game's own colour, not the gold.";
+            on: Settings.game-colors;
+        }
+        if Settings.steam-shown: Rule { }
+        if Settings.steam-shown: Setting {
+            title: "Steam";
+            line: Settings.steam-line;
+            Button {
+                text: Settings.steam-button;
+                compact: true;
+                on-card: true;
+                enabled: Settings.steam-enabled && !Settings.steam-busy;
+                clicked => { Settings.add-to-steam(); }
+            }
+        }
+        if Settings.discord-shown: Rule { }
+        if Settings.discord-shown: SwitchSetting {
+            id: "discord-rpc";
+            title: "Show in Discord";
+            line: "Your status says when you are playing.";
+            on: Settings.discord-rpc;
+        }
+        if Settings.name-shown: Rule { }
+        if Settings.name-shown: VerticalLayout {
+            spacing: 6px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            Text { text: "Multiplayer name"; color: Theme.text; font-weight: 600; }
+            HorizontalLayout {
+                alignment: start;
+                TypedField {
+                    width: 280px;
+                    value: Settings.name;
+                    edited(text) => { Settings.set-text("name", text); }
+                }
+            }
+            Note { text: Settings.name-note; bad: Settings.name-bad; }
+        }
+        if Settings.server-shown: Rule { }
+        if Settings.server-shown: Server { }
+    }
+    Section {
+        title: "Updates";
+        if !Settings.updates: Note { text: "This build receives updates through its distribution channel, such as the App Store."; }
+        SwitchSetting {
+            id: "check-updates";
+            title: "Look for updates at start";
+            line: "Nothing is installed without your click.";
+            on: Settings.check-updates;
+            enabled: Settings.updates;
+        }
+        Rule { }
+        SwitchSetting {
+            id: "check-mod-updates";
+            title: "Look for mod updates at start";
+            line: "Once a day, for the mods you added from a link. The Mods tab still looks when you ask.";
+            on: Settings.check-mod-updates;
+            enabled: Settings.updates;
+        }
+        Rule { }
+        SwitchSetting {
+            id: "auto-update-mods";
+            title: "Update mods automatically";
+            line: "Small updates go in by themselves before you play. Big ones wait for you.";
+            on: Settings.auto-update-mods;
+            enabled: Settings.updates;
+        }
+        Rule { }
+        SwitchSetting {
+            id: "cleanup-deps";
+            title: "Clean up unused dependencies";
+            line: "Removing a mod also removes what was installed only for it.";
+            on: Settings.cleanup-deps;
+        }
+    }
+    if Settings.program-paths.length > 0: Section {
+        title: "Programs";
+        Paths { rows: Settings.program-paths; }
+    }
+    Section {
+        title: "";
+        Fold { text: "Advanced"; open <=> Settings.advanced-open; }
+        if Settings.advanced-open: VerticalLayout {
+            padding-top: 6px;
+            SwitchSetting {
+                id: "detailed-log";
+                title: "Detailed game logs";
+                line: "Turn on when we ask you to. Logs and crash reports are under Help, on each game's page.";
+                on: Settings.detailed-log;
+            }
+            if Settings.renderer-shown: Rule { }
+            if Settings.renderer-shown: VerticalLayout {
+                spacing: 8px;
+                padding-top: 10px;
+                padding-bottom: 12px;
+                Text { text: "Renderer"; color: Theme.text; font-weight: 600; }
+                Note {
+                    text: (Settings.renderer == "vulkan"
+                        ? Settings.renderer-label + " is the default. The game falls back to OpenGL if it cannot start."
+                        : "OpenGL 4.1.") + " From the game's next start: a running game keeps its renderer.";
+                }
+                Segments {
+                    alignment: start;
+                    labels: [Settings.renderer-label, "OpenGL"];
+                    ids: ["vulkan", "opengl"];
+                    chosen: Settings.renderer;
+                    picked(id) => { Settings.set-text("renderer", id); }
+                }
+            }
+            Rule { }
+            SwitchSetting {
+                id: "editor-advanced";
+                title: "Advanced save editing";
+                line: "Every field of a save, raw bytes too. Your memory card is backed up first.";
+                on: Settings.editor-advanced;
+            }
+            Rule { }
+            SwitchSetting {
+                id: "developer";
+                title: "Developer tools";
+                line: "The Develop tab (builds, checks, decompilation, the console), disc serials and file names.";
+                on: Settings.developer;
+            }
+            if Settings.developer: HorizontalLayout {
+                padding-left: 18px;
+                Rectangle { width: 2px; background: Theme.line; }
+                VerticalLayout {
+                    padding-left: 16px;
+                    SwitchSetting {
+                        id: "incremental";
+                        title: "Incremental builds (for developers)";
+                        line: "After a change to OpenRAC, build only what changed instead of the game from scratch. A build folder OpenRAC cannot vouch for (another OpenRAC version, no build stamp) is still built from scratch. The Rebuild from scratch action stays.";
+                        on: Settings.incremental;
+                    }
+                    Rule { }
+                    SwitchSetting {
+                        id: "rac3";
+                        title: "Up Your Arsenal (development)";
+                        line: "Lets the launcher build, set up and play Ratchet & Clank: Up Your Arsenal. It is not finished. Turning it on asks you a few questions first.";
+                        on: Settings.rac3;
+                    }
+                    if Settings.dev-paths.length > 0: Rule { }
+                    Paths { rows: Settings.dev-paths; }
+                    Rule { }
+                    VerticalLayout {
+                        padding-top: 12px;
+                        padding-bottom: 12px;
+                        spacing: 4px;
+                        Text { text: "System: " + Settings.system; color: Theme.soft; font-size: 12.5px; }
+                        if Settings.config-file != "": Text {
+                            text: "Settings file: " + Settings.config-file;
+                            color: Theme.soft;
+                            font-family: "monospace";
+                            font-size: 11.5px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+            if Settings.developer && Settings.discord-rpc && Settings.discord-shown: Rule { }
+            if Settings.developer && Settings.discord-rpc && Settings.discord-shown: VerticalLayout {
+                spacing: 6px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+                Text { text: "Discord application ID"; color: Theme.text; font-weight: 600; }
+                HorizontalLayout {
+                    alignment: start;
+                    TypedField {
+                        width: 280px;
+                        value: Settings.discord-id;
+                        placeholder: "Empty: OpenRAC's own";
+                        edited(text) => { Settings.set-text("discord-id", text); }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    Text { text: "To show your own name and art, create an app at"; color: Theme.soft; font-size: 13px; }
+                    Link {
+                        text: "discord.com/developers/applications";
+                        clicked => { Settings.open-url("https://discord.com/developers/applications"); }
+                    }
+                }
+            }
+        }
+    }
+    Text { text: "OpenRAC Launcher " + Settings.version; color: Theme.dim; font-size: 12.5px; }
+}
+
+export component SettingsPage inherits Rectangle {
+    out property <bool> scrolled: scroll.scrolled;
+    property <bool> bar: !Settings.setup && Settings.changed && !Settings.auto-save;
+    scroll := Scroll {
+        height: root.height - (root.bar ? save-bar.height : 0px);
+        y: 0;
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                width: min(root.width - 56px, 820px);
+                alignment: start;
+                padding-top: 28px;
+                padding-bottom: 60px;
+                if Settings.setup: Welcome { }
+                if !Settings.setup: Everything { }
+            }
+        }
+    }
+    save-bar := Rectangle {
+        visible: root.bar;
+        y: root.height - self.height;
+        height: 60px;
+        background: Theme.rail;
+        Rectangle { y: 0; height: 1px; background: Theme.line; }
+        HorizontalLayout {
+            padding-left: 24px;
+            padding-right: 24px;
+            spacing: 8px;
+            Text {
+                text: Settings.blocked != "" ? Settings.blocked : "You have unsaved changes.";
+                color: Settings.blocked != "" ? Theme.warn : Theme.text;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                overflow: elide;
+            }
+            VerticalLayout {
+                alignment: center;
+                Button { text: "Discard"; enabled: !Settings.saving; clicked => { Settings.discard(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                Button {
+                    text: Settings.saving ? "Saving…" : "Save";
+                    kind: ButtonKind.primary;
+                    enabled: !Settings.saving && Settings.blocked == "";
+                    clicked => { Settings.save(); }
+                }
+            }
+        }
+    }
+}

@@ -19,6 +19,14 @@ export component Ask inherits Rectangle {
         body := VerticalLayout {
             padding: 22px;
             spacing: 20px;
+            if App.ask-title != "": Text {
+                text: App.ask-title;
+                font-family: Theme.head;
+                font-weight: 700;
+                font-size: Theme.size-h2;
+                color: Theme.gold;
+                wrap: word-wrap;
+            }
             Text {
                 text: App.ask-text;
                 color: Theme.text;
@@ -29,7 +37,7 @@ export component Ask inherits Rectangle {
                 alignment: end;
                 spacing: 6px;
                 Button {
-                    text: "Cancel";
+                    text: App.ask-no;
                     on-card: true;
                     clicked => { App.answer(false); }
                 }

@@ -149,9 +149,10 @@ export component IconButton inherits Rectangle {
     }
 }
 
-// An on/off switch: a dark track, gold-tinted with a gold knob when on.
+// An on/off switch: a dark track, gold-tinted with a gold knob when on. It shows `checked` as the
+// launcher has it: a press asks with `toggled`, and the switch moves once the launcher agrees.
 export component Switch inherits Rectangle {
-    in-out property <bool> checked;
+    in property <bool> checked;
     in property <bool> enabled: true;
     in property <string> label;
     callback toggled(bool);
@@ -165,14 +166,11 @@ export component Switch inherits Rectangle {
     accessible-checkable: true;
     accessible-checked: checked;
     accessible-label: label;
-    accessible-action-default => { if enabled { checked = !checked; toggled(checked); } }
+    accessible-action-default => { if enabled { toggled(!checked); } }
     TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
-        clicked => {
-            root.checked = !root.checked;
-            root.toggled(root.checked);
-        }
+        clicked => { root.toggled(!root.checked); }
     }
     Rectangle {
         width: 16px;
@@ -185,9 +183,9 @@ export component Switch inherits Rectangle {
     }
 }
 
-// A check box with its words beside it.
+// A check box with its words beside it; like the switch, it shows what the launcher has.
 export component CheckBox inherits Rectangle {
-    in-out property <bool> checked;
+    in property <bool> checked;
     in property <string> text;
     in property <bool> enabled: true;
     callback toggled(bool);
@@ -196,14 +194,11 @@ export component CheckBox inherits Rectangle {
     accessible-checkable: true;
     accessible-checked: checked;
     accessible-label: text;
-    accessible-action-default => { if enabled { checked = !checked; toggled(checked); } }
+    accessible-action-default => { if enabled { toggled(!checked); } }
     area := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
-        clicked => {
-            root.checked = !root.checked;
-            root.toggled(root.checked);
-        }
+        clicked => { root.toggled(!root.checked); }
     }
     HorizontalLayout {
         spacing: 10px;

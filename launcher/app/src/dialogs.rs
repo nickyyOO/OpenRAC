@@ -24,6 +24,12 @@ pub fn pick_folder(title: &str) -> Option<PathBuf> {
     on_main(move || dialog.pick_folder())
 }
 
+/// A program (Python, Docker): any file.
+pub fn pick_program(title: &str) -> Option<PathBuf> {
+    let dialog = rfd::FileDialog::new().set_title(title);
+    on_main(move || dialog.pick_file())
+}
+
 /// Where to save a file named `name`.
 pub fn save_file(title: &str, name: &str) -> Option<PathBuf> {
     let dialog = rfd::FileDialog::new().set_title(title).set_file_name(name);

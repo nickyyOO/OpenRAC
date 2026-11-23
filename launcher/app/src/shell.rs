@@ -14,6 +14,7 @@ use crate::pages::differences::{self, DifferencesState};
 use crate::pages::game::{self, GameState};
 use crate::pages::help::{self, HelpState};
 use crate::pages::saves::{self, SavesState};
+use crate::pages::settings::{self, SettingsState};
 use crate::pages::stopped::{self, StoppedState};
 use crate::toasts::Toasts;
 use crate::{art, theme, App, AppWindow, Games, Page, SideEntry, Tone};
@@ -30,6 +31,7 @@ pub struct Shell {
     pub stopped: StoppedState,
     pub differences: DifferencesState,
     pub activity: ActivityState,
+    pub settings: SettingsState,
 }
 
 thread_local! {
@@ -57,6 +59,7 @@ pub fn install(window: &AppWindow) {
         stopped: StoppedState::default(),
         differences: DifferencesState::default(),
         activity: ActivityState::default(),
+        settings: SettingsState::default(),
     });
     SHELL.with(|s| *s.borrow_mut() = Some(shell));
     let app = window.global::<App>();
@@ -77,6 +80,7 @@ pub fn install(window: &AppWindow) {
     stopped::install(window);
     differences::install(window);
     activity::install(window);
+    settings::install(window);
     #[cfg(not(target_os = "android"))]
     crate::pages::shortcuts::install(window);
 }
@@ -127,12 +131,19 @@ impl Shell {
 
     /// Asks the player in a dialog over the window; `answer` hears it.
     pub fn ask(&self, text: &str, yes: &str, answer: Sender<bool>) {
+        self.ask_titled("", text, yes, "Cancel", answer);
+    }
+
+    /// [`Shell::ask`] with a title over the words, and the words of the answer that goes back.
+    pub fn ask_titled(&self, title: &str, text: &str, yes: &str, no: &str, answer: Sender<bool>) {
         // A question already open is answered no: one dialog at a time.
         if let Some(earlier) = self.asked.replace(Some(answer)) {
             let _ = earlier.send(false);
         }
         let app = self.window.global::<App>();
+        app.set_ask_title(title.into());
         app.set_ask_text(text.into());
+        app.set_ask_no(no.into());
         app.set_ask_yes(yes.into());
         app.set_asking(true);
     }
@@ -148,7 +159,14 @@ impl Shell {
         let app = self.window.global::<App>();
         // With developer tools on, what the launcher ran is Develop's console.
         let page = if page == Page::Activity && app.get_developer() { Page::Develop } else { page };
+        let was = app.get_page();
         app.set_page(page);
+        if was == Page::Settings && page != Page::Settings {
+            self.settings.close(self);
+        }
+        if page == Page::Settings && was != Page::Settings {
+            self.settings.open(self);
+        }
         self.follow_view();
         self.show_activity();
     }
@@ -161,12 +179,19 @@ impl Shell {
         let app = self.window.global::<App>();
         app.set_developer(config.developer);
         app.set_setup_complete(config.setup_complete);
+        // The first run is the settings' page.
+        if !config.setup_complete && !self.window.global::<crate::Settings>().get_setup() {
+            self.settings.open(self);
+        }
+        if config.setup_complete {
+            self.window.global::<crate::Settings>().set_setup(false);
+        }
         self.apply_theme();
         self.show_game();
         self.show_help();
     }
 
-    fn apply_theme(&self) {
+    pub fn apply_theme(&self) {
         let Some(launcher) = self.launcher() else { return };
         let config = launcher.config();
         let selected = self.window.global::<Games>().get_selected();

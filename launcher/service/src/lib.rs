@@ -16,6 +16,7 @@ mod progress;
 mod queue;
 mod reports;
 mod saves;
+mod settings;
 mod stopped;
 mod tasks;
 
@@ -33,6 +34,7 @@ pub use progress::{
 };
 pub use queue::{Job, JobState, Line};
 pub use saves::{backup_label, empty_slots, Card};
+pub use settings::{is_official, name_problem, server_problem, PathKind};
 pub use stopped::{crash_after_update, crash_mods_line, stop_text, StoppedMods};
 
 /// The domain crate, for the window's own reads (the library's types, the settings).

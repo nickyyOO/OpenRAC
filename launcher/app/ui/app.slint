@@ -19,8 +19,9 @@ import { Differences, DiffGroup, DiffRow } from "pages/differences.slint";
 import { Icons } from "widgets/icon.slint";
 import { Placeholder } from "pages/placeholder.slint";
 import { Activity, ActivityPage, JobRow } from "pages/activity.slint";
+import { Settings, SettingsPage, PathRow, ThemeChoice } from "pages/settings.slint";
 
-export { Theme, App, Page, SideEntry, Toast, Links, Games, GamePage, DiscOption, FolderPrompt, PlayerButton, JobStrip, Steps, GameNotice, MenuItem, Icons, Help, ReportRow, Saves, SlotRow, BackupRow, Stopped, RollBack, Shortcuts, Differences, DiffGroup, DiffRow, Activity, JobRow }
+export { Theme, App, Page, SideEntry, Toast, Links, Games, GamePage, DiscOption, FolderPrompt, PlayerButton, JobStrip, Steps, GameNotice, MenuItem, Icons, Help, ReportRow, Saves, SlotRow, BackupRow, Stopped, RollBack, Shortcuts, Differences, DiffGroup, DiffRow, Activity, JobRow, Settings, PathRow, ThemeChoice }
 
 export component AppWindow inherits Window {
     title: "OpenRAC Launcher";
@@ -61,11 +62,12 @@ export component AppWindow inherits Window {
 
     if App.ready: VerticalLayout {
         Header { setup: !App.setup-complete; }
-        if App.page == Page.games: GamesPage { }
-        if App.page == Page.mods: Placeholder { title: "Mods"; }
-        if App.page == Page.develop: Placeholder { title: "Develop"; }
-        if App.page == Page.settings: Placeholder { title: "Settings"; }
-        if App.page == Page.activity: ActivityPage { }
+        if !App.setup-complete: SettingsPage { }
+        if App.setup-complete && App.page == Page.games: GamesPage { }
+        if App.setup-complete && App.page == Page.mods: Placeholder { title: "Mods"; }
+        if App.setup-complete && App.page == Page.develop: Placeholder { title: "Develop"; }
+        if App.setup-complete && App.page == Page.settings: SettingsPage { }
+        if App.setup-complete && App.page == Page.activity: ActivityPage { }
     }
 
     if App.asking: Ask { }

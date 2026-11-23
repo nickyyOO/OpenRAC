@@ -51,8 +51,10 @@ export global App {
 
     // A question only the player can answer, in a dialog over the window.
     in property <bool> asking: false;
+    in property <string> ask-title;
     in property <string> ask-text;
     in property <string> ask-yes;
+    in property <string> ask-no: "Cancel";
     callback answer(bool);
 
     callback open-page(Page);

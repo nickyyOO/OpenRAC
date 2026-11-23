@@ -1,19 +1,19 @@
-// One setting: its name and a line on what it does, and its control at the right.
+// One setting: its name and a line on what it does, and its control at the right. Placed by hand,
+// not by a layout, so that the words wrap at the width they get and the row grows with them.
 
 import { Theme } from "../theme.slint";
 
-export component Setting inherits HorizontalLayout {
+export component Setting inherits Rectangle {
     in property <string> title;
     in property <string> line;
     // The line in the error colour (why it cannot be done).
     in property <bool> warn: false;
-    spacing: 16px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    min-height: 56px;
-    VerticalLayout {
-        horizontal-stretch: 1;
-        alignment: center;
+    min-height: max(56px, words.preferred-height + 20px, control.preferred-height + 20px);
+    words := VerticalLayout {
+        x: 0;
+        width: root.width - control.width - 16px;
+        height: self.preferred-height;
+        y: (root.height - self.height) / 2;
         spacing: 2px;
         Text {
             text: root.title;
@@ -28,7 +28,10 @@ export component Setting inherits HorizontalLayout {
             wrap: word-wrap;
         }
     }
-    VerticalLayout {
+    control := VerticalLayout {
+        width: self.preferred-width;
+        x: root.width - self.width;
+        height: root.height;
         alignment: center;
         @children
     }
