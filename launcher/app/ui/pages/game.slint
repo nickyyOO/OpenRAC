@@ -59,6 +59,22 @@ export struct GameNotice {
     id: string,
 }
 
+// One of a game's discs, in the developer's disc switch.
+export struct DiscOption {
+    key: string,
+    // "PAL", "NTSC-U".
+    label: string,
+    on: bool,
+}
+
+// The first run's question at the top of a game's page: where the player's games are.
+export struct FolderPrompt {
+    shown: bool,
+    title: string,
+    text: string,
+    button: string,
+}
+
 export global GamePage {
     in property <bool> found: false;
     in property <string> key;
@@ -96,6 +112,10 @@ export global GamePage {
     in property <float> coming-percent: -1;
     // The disc is set up: its saves and Help show under the band.
     in property <bool> set-up;
+    // Developers with two of the game's discs: which one the page plays.
+    in property <[DiscOption]> discs;
+    in property <FolderPrompt> folder;
+    in property <bool> folder-busy;
     // Asked by the menu: Help's logs, unfolded and in view.
     in property <int> logs-asked;
 
@@ -107,6 +127,62 @@ export global GamePage {
     callback notice-chosen(string);
     callback open-develop();
     callback follow-progress();
+    callback choose-disc(string);
+    callback choose-folder();
+}
+
+// Developers only: which of the game's discs the page plays.
+component DiscSwitch inherits Rectangle {
+    border-radius: Theme.radius-sm;
+    background: #00000059;
+    horizontal-stretch: 0;
+    HorizontalLayout {
+        padding: 3px;
+        spacing: 2px;
+        Text {
+            text: "Disc";
+            color: Theme.soft;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+        Rectangle { width: 6px; }
+        for d in GamePage.discs: Button {
+            text: d.label;
+            compact: true;
+            kind: d.on ? ButtonKind.on : ButtonKind.quiet;
+            enabled: !GamePage.button.busy;
+            clicked => { if !d.on { GamePage.choose-disc(d.key); } }
+        }
+    }
+}
+
+component FolderCard inherits Card {
+    HorizontalLayout {
+        padding: 18px;
+        padding-left: 22px;
+        spacing: 16px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: Icons.folder;
+            colour: Theme.amber;
+            size: 22px;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            Text { text: GamePage.folder.title; color: Theme.text; font-weight: 700; font-size: Theme.size-h3; wrap: word-wrap; }
+            Text { text: GamePage.folder.text; color: Theme.soft; font-size: 13.5px; wrap: word-wrap; }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: GamePage.folder.button;
+                on-card: true;
+                enabled: !GamePage.folder-busy;
+                clicked => { GamePage.choose-folder(); }
+            }
+        }
+    }
 }
 
 component TitleBox inherits Rectangle {
@@ -339,6 +415,10 @@ component Hero inherits Rectangle {
                         chosen(id) => { GamePage.menu-chosen(id); }
                     }
                 }
+                if GamePage.discs.length > 1: HorizontalLayout {
+                    alignment: center;
+                    DiscSwitch { }
+                }
                 if GamePage.mods-shown: HorizontalLayout {
                     alignment: center;
                     ModsPill { }
@@ -507,6 +587,7 @@ export component GameView inherits Rectangle {
                     text: "That game is not in this OpenRAC folder.";
                     color: Theme.soft;
                 }
+                if GamePage.folder.shown: FolderCard { }
                 for n in GamePage.notices: Notice { notice: n; }
                 if Stopped.shown: StoppedNotice { }
                 if GamePage.found: Hero { }

@@ -4,9 +4,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use openrac_launcher_service::core::actions::{Scope, State};
+use openrac_launcher_service::core::config::Config;
 use openrac_launcher_service::core::library::{GameView, VersionView};
 use openrac_launcher_service::core::reports::ReportEntry;
-use openrac_launcher_service::labels::title_lines;
+use openrac_launcher_service::labels::{region_label, title_lines};
 use openrac_launcher_service::{
     action, failed_step, is_built, play_warning, player_state, player_version, rebuild_steps, summarize, tool_failure,
     update_step, Icon, Job, Launcher, Pace, PlayerKind, PlayerState, Situation,
@@ -14,7 +15,10 @@ use openrac_launcher_service::{
 use slint::{Color, ComponentHandle, ModelRc, SharedString, VecModel};
 
 use crate::shell::{self, Shell};
-use crate::{art, words, App, AppWindow, GameNotice, GamePage, Icons, JobStrip, MenuItem, Page, PlayerButton, Steps};
+use crate::{
+    art, words, App, AppWindow, DiscOption, FolderPrompt, GameNotice, GamePage, Icons, JobStrip, MenuItem, Page,
+    PlayerButton, Steps,
+};
 
 /// What the page keeps between reads: each job's pace (for "about 3 minutes left"), and what is
 /// read from files off the window's thread.
@@ -65,6 +69,27 @@ pub fn install(window: &AppWindow) {
     page.on_open_develop(|| shell::with(|s| s.open_page(Page::Develop)));
     page.on_follow_progress(|| {
         shell::with(|s| s.window().global::<App>().invoke_open_url("https://openrac.dev".into()))
+    });
+    page.on_choose_disc(|key| {
+        shell::with(|s| {
+            if let Some(l) = s.launcher() {
+                let key = key.to_string();
+                l.spawn(move |l| l.choose_disc(&key));
+            }
+        })
+    });
+    page.on_choose_folder(|| {
+        shell::with(|s| {
+            let Some(l) = s.launcher() else { return };
+            s.window().global::<GamePage>().set_folder_busy(true);
+            l.spawn(|l| {
+                l.choose_games_folder();
+                let _ = slint::invoke_from_event_loop(|| {
+                    shell::with(|s| s.window().global::<GamePage>().set_folder_busy(false))
+                });
+                Ok(())
+            });
+        })
     });
     page.on_notice_chosen(|id| {
         if id == "update" {
@@ -265,6 +290,23 @@ impl GameState {
 
         page.set_notices(ModelRc::new(VecModel::from(notices(&view, v, &next, config.incremental_builds))));
 
+        page.set_folder(folder_prompt(&view, &config, cfg!(target_os = "android")));
+        let choice = view.disc_choices.iter().find(|c| c.game == game.id).filter(|_| config.developer);
+        let discs: Vec<DiscOption> = choice
+            .map(|c| {
+                game.versions
+                    .iter()
+                    .filter(|v| c.versions.contains(&v.version.key))
+                    .map(|v| DiscOption {
+                        key: v.version.key.as_str().into(),
+                        label: region_label(&v.version.name).into(),
+                        on: v.version.key == c.chosen,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        page.set_discs(ModelRc::new(VecModel::from(discs)));
+
         page.set_developer(config.developer);
         let mut chips = vec![v.version.key.clone()];
         if !v.version.serial.is_empty() {
@@ -328,6 +370,42 @@ impl GameState {
                 })
             });
         });
+    }
+}
+
+/// The first run's question: a player who has set nothing up and named no games folder is asked
+/// for one; a folder that holds no game OpenRAC knows says so.
+fn folder_prompt(view: &openrac_launcher_service::View, config: &Config, android: bool) -> FolderPrompt {
+    let Some(library) = &view.library else { return FolderPrompt::default() };
+    let nothing_yet = !library.games.iter().any(|g| g.install.as_ref().is_some_and(|i| i.extracted.is_some()));
+    let ask = nothing_yet && config.discs_dir.is_none();
+    let empty = nothing_yet && view.discs.is_empty();
+    let prompt = |title: &str, text: String, button: &str| FolderPrompt {
+        shown: true,
+        title: title.into(),
+        text: text.into(),
+        button: button.into(),
+    };
+    match (&config.discs_dir, android) {
+        _ if !ask && !empty => FolderPrompt::default(),
+        (_, true) => prompt(
+            "Add your Ratchet & Clank disc",
+            "Choose the image of your own disc (.iso or .chd) from this device's storage. It is copied into the app, a few GB, and the game is set up from it. OpenRAC never downloads a game.".into(),
+            "Choose disc image",
+        ),
+        (None, false) => prompt(
+            "Where are your PlayStation 2 games?",
+            "Choose the folder with your disc images (.iso). OpenRAC finds the Ratchet & Clank games in it and sets them up. Nothing is copied off your computer, and OpenRAC never downloads a game.".into(),
+            "Choose folder",
+        ),
+        (Some(dir), false) => prompt(
+            "No Ratchet & Clank game found there",
+            format!(
+                "{} holds no disc image (.iso) of a game OpenRAC knows. Choose another folder, or set this game up and pick its image yourself.",
+                dir.display()
+            ),
+            "Choose another",
+        ),
     }
 }
 
