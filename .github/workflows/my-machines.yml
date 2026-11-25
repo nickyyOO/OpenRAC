@@ -1,0 +1,124 @@
+# Builds on a maintainer's own computers, by hand only (docs/SELF_HOSTED.md): Actions, "my
+# machines", Run workflow. Each job goes to the self-hosted runner whose label is the login of the
+# one who ran it (or the "machine" input: another maintainer's login, or openrac-pool for any
+# runner that is on). A computer that is off leaves its jobs waiting until it starts its runner or
+# the run is cancelled. Nothing here is a required check, and nothing else uses these runners:
+# only people who can write to the repository can start this workflow.
+#
+# The build folders and ccache stay on the computer between runs, so a second build of the same
+# games is incremental. Every action is pinned to a commit.
+name: my machines
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number (builds its merge with the base); empty: the branch above"
+        required: false
+        default: ""
+      games:
+        description: "Games (port/game/*/hostgen.json ids), or all"
+        required: false
+        default: all
+      linux:
+        description: Linux
+        type: boolean
+        default: true
+      windows:
+        description: Windows
+        type: boolean
+        default: true
+      android:
+        description: Android (rac1 and rac2 when games is all)
+        type: boolean
+        default: true
+      macos:
+        description: macOS
+        type: boolean
+        default: false
+      machine:
+        description: "Runner label: empty for your own computers, a maintainer's login, or openrac-pool"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # As in CI: games translated from a disc build with stubs (port/tools/hostgen/asmc.py).
+  OPENRAC_HOSTGEN_NO_DISC: "1"
+  OPENRAC_BUILD_LOG: brief
+  REF: ${{ inputs.pr != '' && format('refs/pull/{0}/merge', inputs.pr) || github.ref }}
+  GAMES: ${{ inputs.games }}
+
+jobs:
+  linux:
+    if: inputs.linux
+    name: Linux
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.machine || github.actor }}"]
+    timeout-minutes: 240
+    steps: &steps
+      # Not cleaned by checkout: port/build and the launcher's target/ make the next build
+      # incremental. Everything else untracked goes (below), the decomps too.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.REF }}
+          clean: false
+          persist-credentials: false
+      - name: Clean, keeping the build folders
+        shell: bash
+        run: |
+          git clean -ffdxq -e /port/build/ -e /build/ -e /launcher/target/
+          git submodule foreach --quiet 'git reset -q --hard && git clean -ffdxq' || true
+          git -c core.autocrlf=false submodule update --init --depth 1 --jobs 4 --force
+          "$(command -v python3 || command -v python)" tools/sources.py apply
+      - name: ccache when the computer has it
+        shell: bash
+        run: |
+          if command -v ccache > /dev/null; then
+            echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+            echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+          else
+            echo "::notice::No ccache on this computer: every build compiles everything."
+          fi
+      - name: Build
+        shell: bash
+        run: |
+          python=$(command -v python3 || command -v python)
+          if [ "$JOB" = android ]; then
+            games=""
+            [ "$GAMES" = all ] || games="$GAMES"
+            # shellcheck disable=SC2086
+            "$python" tools/build_android.py --no-apk $games
+            exit
+          fi
+          games="$GAMES"
+          if [ "$games" = all ]; then
+            games=$("$python" -c 'import json, pathlib; print(" ".join(sorted(json.loads(p.read_text())["id"] for p in pathlib.Path("port/game").glob("*/hostgen.json"))))')
+          fi
+          # shellcheck disable=SC2086
+          "$python" tools/build_port.py $games --no-install-deps
+        env:
+          JOB: ${{ github.job }}
+
+  windows:
+    if: inputs.windows
+    name: Windows
+    runs-on: [self-hosted, Windows, X64, "${{ inputs.machine || github.actor }}"]
+    timeout-minutes: 240
+    steps: *steps
+
+  # On a Linux runner (WSL on Windows is fine) with the Android NDK and JDK 21 (docs/SELF_HOSTED.md).
+  android:
+    if: inputs.android
+    name: Android
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.machine || github.actor }}"]
+    timeout-minutes: 240
+    steps: *steps
+
+  macos:
+    if: inputs.macos
+    name: macOS
+    runs-on: [self-hosted, macOS, ARM64, "${{ inputs.machine || github.actor }}"]
+    timeout-minutes: 240
+    steps: *steps
