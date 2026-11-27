@@ -15,6 +15,10 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+# A test that runs longer than this has hung (the slowest takes a few minutes on software
+# Vulkan). It then fails with its name instead of the whole job hitting its time limit.
+TEST_TIMEOUT = 900
+
 REQUIRED = {
     "probe_gpu_vulkan", "early_lighting_vulkan", "hero_shadow_vulkan",
     "sun_shadow_vulkan", "gtao_vulkan", "probe_bake", "bake_liquids",
@@ -79,7 +83,8 @@ def execute(build, path, report, jobs, env=None):
     start = time.monotonic()
     result = subprocess.run(
         ["ctest", "--test-dir", str(build), "--tests-from-file", str(path),
-         "--parallel", str(jobs), "--no-tests=error", "--output-on-failure",
+         "--parallel", str(jobs), "--timeout", str(TEST_TIMEOUT),
+         "--no-tests=error", "--output-on-failure",
          "--test-output-size-passed", "1048576", "--output-junit", str(report)],
         check=False, env=env,
     )
