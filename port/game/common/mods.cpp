@@ -1502,8 +1502,10 @@ bool load_built_in(const BuiltIn& b, std::unique_ptr<openrac_mod>& out, std::str
     }
     mod->base = reinterpret_cast<const void*>(b.load);
     g_loading = mod.get();
+    play_loading(mod.get());
     const int result = b.load(&g_api, mod.get());
     g_loading = nullptr;
+    play_loading(nullptr);
     if (result != 0 || mod->hook_refused) {
         undo(mod.get());
         why = !mod->failure.empty() ? mod->failure : std::format("its load returned {}", result);

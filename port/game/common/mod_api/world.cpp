@@ -149,7 +149,8 @@ int api_on_moby_update(openrac_mod* mod, openrac_moby_update_fn fn, void* user) 
     if (mod == nullptr || fn == nullptr || mod != g_loading_mod) {
         return OPENRAC_HOOK_TOO_LATE;
     }
-    if (g_gate.mod != nullptr) {
+    // A mod of the list takes the gate from a mod built into the program, which loads first.
+    if (g_gate.mod != nullptr && !(g_gate.mod->built_in && !mod->built_in)) {
         return OPENRAC_HOOK_TAKEN;
     }
     g_gate = {mod, fn, user};
