@@ -2204,6 +2204,19 @@ void check_reload(const openrac_api& api, openrac_mod* handle) {
     CHECK(twice(1) == 102);
 }
 
+// Checks that a second mod built into the same program keeps the first one's hooks: its load
+// must not let go of them (they share the library's statics).
+void check_second_built_in(const openrac_api& api, openrac_mod* handle) {
+    g_failed.clear();
+
+    CHECK(openrac::detail::load_built_in(&api, handle, [](openrac::Mod&) {}) == 0);
+    CHECK(g_failed.empty());
+
+    auto twice = reinterpret_cast<int32_t (*)(int32_t)>(g_slots["Test_Twice"]);
+
+    CHECK(twice(1) == 102);
+}
+
 }  // namespace
 
 // Runs every check against the fake host. Returns 0 when all passed, 1 otherwise.
@@ -3097,6 +3110,7 @@ int main() {
     }
     check_refused_loads(api, handle);
     check_reload(api, handle);
+    check_second_built_in(api, handle);
 
     // The count of failed checks is the whole verdict.
     if (g_failures == 0) {
