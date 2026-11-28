@@ -1860,6 +1860,7 @@ int rac1_weapon_hud_icon(int native_icon) {
 }
 
 void run_frame_callbacks() {
+    follow_built_in_level();
     restore_weapon_grid_if_left();
     // The game in progress first (1.16): a mod's frame callback then sees its new data.
     follow_saves();

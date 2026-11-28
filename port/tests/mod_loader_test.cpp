@@ -2907,6 +2907,61 @@ void installed_games_and_their_folders(const fs::path& dir) {
     CHECK(!mods::parse_manifest(base + R"([3]})", m, error));
 }
 
+// A mod built into the program asks the game's calls into the world only on a level its pack holds
+// files for: on the game's own levels the game never calls it.
+void a_built_in_world_call_wakes_only_on_its_levels(const fs::path& plugins, const fs::path& dir) {
+    static fs::path pack;
+    pack = dir / "built-in-pack";
+    fs::remove_all(pack);
+    fs::create_directories(pack);
+    write(plugins / "plugins.json", R"({"format": 1, "mods": []})");
+    mods::Host h = host(plugins);
+    static openrac_game_play play = kPlay;
+    h.play = &play;
+    h.cards = dir / "cards";
+    h.pack_folder = [] {
+        return pack.c_str();
+    };
+    static const char kManifest[] = R"({"format": 2, "id": "test-built-in", "name": "Built in",
+        "version": "1.0.0", "author": "t", "description": "t", "license": "MIT", "api": "1.35",
+        "multiplayer": "solo", "games": {"test": ["one"]}})";
+    h.built_ins = {mods::BuiltIn{
+        kManifest,
+        [](openrac_mod_info* info) {
+            info->api_major = OPENRAC_MOD_API_MAJOR;
+            info->api_minor = 35;
+            info->id = "test-built-in";
+            info->version = "1.0.0";
+        },
+        [](const openrac_api* api, openrac_mod* mod) {
+            CHECK(
+                api->on_moby_update(
+                    mod, [](void*, int, int) { return 0; }, nullptr
+                )
+                == OPENRAC_HOOK_OK
+            );
+            CHECK(api->on_frame(mod, [](void*) {}, nullptr) == OPENRAC_HOOK_OK);
+            return 0;
+        },
+    }};
+    g_phase = OPENRAC_GAME_PHASE_PLAYING;
+    g_loads = 1;
+    reset_world();
+    mods::load(h);
+    CHECK(openrac_game_moby_update == nullptr);
+    mods::frame();
+    CHECK(openrac_game_moby_update == nullptr);  // level 2 of the game: no folder in the pack
+    fs::create_directories(pack / "level_02");
+    g_loads = 2;
+    mods::frame();
+    CHECK(openrac_game_moby_update != nullptr);
+    fs::remove_all(pack / "level_02");
+    g_loads = 3;
+    mods::frame();
+    CHECK(openrac_game_moby_update == nullptr);
+    mods::unload();
+}
+
 int main() {
     const fs::path dir =
         fs::temp_directory_path() / ("openrac_mod_loader_test_" + std::to_string(std::rand()));
@@ -2958,6 +3013,7 @@ int main() {
     mods_offer_each_other_services(plugins);
     dropped_mod_watchers_are_not_called();
     refused_library_leaves_no_watchers(plugins);
+    a_built_in_world_call_wakes_only_on_its_levels(plugins, dir);
     installed_games_and_their_folders(dir);
     std::error_code e;
     fs::remove_all(dir, e);

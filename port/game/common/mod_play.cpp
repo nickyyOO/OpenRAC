@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -943,11 +944,56 @@ unsigned prop_meshes_generation() {
     return g_prop_generation;
 }
 
+// Whether a mod of the list, or only a mod built into the program, took the game's calls into the
+// world; a built-in one's run only on a level its pack holds files for (follow_built_in_level).
+namespace {
+
+bool g_listed_play = false;
+bool g_built_in_play = false;
+bool g_built_in_awake = false;
+std::uint32_t g_awake_loads = 0;
+std::int32_t g_awake_level = -1;
+
+void set_world_calls() {
+    const bool on = g_play != nullptr && (g_listed_play || (g_built_in_play && g_built_in_awake));
+    openrac_game_moby_update = on ? game_moby_update : nullptr;
+    openrac_game_moby_hit = on ? game_moby_hit : nullptr;
+}
+
+}  // namespace
+
 void play_loading(const openrac_mod* mod) {
     g_loading_mod = mod;
+    if (mod != nullptr) {
+        (mod->built_in ? g_built_in_play : g_listed_play) = true;
+    }
     // The game asks only once a mod has a gate or a watcher; drives are checked in the gate.
-    openrac_game_moby_update = g_play != nullptr ? game_moby_update : nullptr;
-    openrac_game_moby_hit = g_play != nullptr ? game_moby_hit : nullptr;
+    set_world_calls();
+}
+
+void follow_built_in_level() {
+    if (!g_built_in_play || g_listed_play || g_play == nullptr) {
+        return;
+    }
+    std::int32_t level = -1;
+    const int phase = phase_now(&level);
+    const std::uint32_t loads = loads_now();
+    if (!in_level(phase) || (loads == g_awake_loads && level == g_awake_level)) {
+        return;
+    }
+    g_awake_loads = loads;
+    g_awake_level = level;
+    // A level of the game's own has no folder in the pack (a map's, or an edited level's, has).
+    const char* pack = pack_folder();
+    std::error_code error;
+    const bool awake = pack != nullptr && level >= 0
+                       && std::filesystem::is_directory(
+                           std::filesystem::path(pack) / std::format("level_{:02d}", level), error
+                       );
+    if (awake != g_built_in_awake) {
+        g_built_in_awake = awake;
+        set_world_calls();
+    }
 }
 
 // The overrides of mobys the game freed or made again in their slots are no one's: dropped. Once a
@@ -1178,6 +1224,9 @@ void reset_play() {
     if (g_play != nullptr && g_play->keep_running != nullptr) {
         g_play->keep_running(0);
     }
+    g_listed_play = g_built_in_play = g_built_in_awake = false;
+    g_awake_loads = 0;
+    g_awake_level = -1;
     openrac_game_moby_update = nullptr;
     openrac_game_moby_hit = nullptr;
     openrac_game_metal_detect = nullptr;

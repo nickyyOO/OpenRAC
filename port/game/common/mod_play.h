@@ -30,6 +30,10 @@ void fill_motion_api(openrac_api& api, const Host& host);
 // only then; and the game's calls into the world set (game_host.h).
 void play_loading(const openrac_mod* mod);
 
+// Each frame: whether the level now is one a built-in mod's world calls run on (a level its pack
+// holds files for); the game's own levels never call them.
+void follow_built_in_level();
+
 // What the game shows now, as an overlay's phase (openrac_overlay.phase): OPENRAC_OVERLAY_PLAYING,
 // _MENU or _SCENE in a level, 0 elsewhere (the title, a load).
 std::uint32_t overlay_phase_now();
