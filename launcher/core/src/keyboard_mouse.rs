@@ -134,7 +134,8 @@ mod tests {
     fn the_discs_it_knows() {
         assert!(supported("rac1", "pal"));
         assert!(supported("rac1", "ntsc"));
-        assert!(!supported("rac1", "jp"));
+        assert!(supported("rac1", "pal1"));
+        assert!(supported("rac1", "jp"));
         for v in ["ntsc", "pal", "ntsc2"] {
             assert!(supported("rac2", v));
         }
@@ -208,8 +209,8 @@ mod tests {
         assert!(set_setting(&home, "rac1", "ntsc", "nothing", &json!(1)).is_err());
         // A version it does not know writes no file, so no path out of the settings folder.
         assert!(set_setting(&home, "rac1", "../../x", "jump", &json!("KeyJ")).is_err());
-        assert!(set_setting(&home, "rac1", "jp", "jump", &json!("KeyJ")).is_err());
-        assert!(!settings_file(&home, "rac1", "jp").exists());
+        assert!(set_setting(&home, "rac1", "kr", "jump", &json!("KeyJ")).is_err());
+        assert!(!settings_file(&home, "rac1", "kr").exists());
         let _ = std::fs::remove_dir_all(&home);
     }
 
