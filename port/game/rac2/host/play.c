@@ -75,6 +75,10 @@
 #define HERO_FRAMES_OFF_GROUND (HERO + 0x34Cu)
 /* His height over the ground: the follow camera's ground is this far below him while he is off it. */
 #define HERO_GROUND_DISTANCE (HERO + 0x31Cu)
+/* Past the top of a jump (a byte), and the frames to landing: the follow camera holds its height in
+ * the air until he is past the top (cam_update_pivot_state). */
+#define HERO_PAST_JUMP_APEX (HERO + 0x49Eu)
+#define HERO_FRAMES_TO_LAND (HERO + 0x4AEu)
 /* His item slots, 0x50 bytes each (func_L00_002AFBF0): slot 0 the hand, its moby +0, its item +0x28. */
 #define HERO_ITEM_MOBY (HERO + 0x1220u)
 #define HERO_ITEM_ID (HERO + 0x1248u)
@@ -367,10 +371,14 @@ static int hero_set_pose(const openrac_game_pose* pose) {
     if (pose->flags & 2u) {
         GREF(int16_t, HERO_FRAMES_OFF_GROUND) = 0;
         GREF(float, HERO_GROUND_DISTANCE) = 0.0f;
+        GREF(uint8_t, HERO_PAST_JUMP_APEX) = 0;
+        GREF(int16_t, HERO_FRAMES_TO_LAND) = 0;
     } else if (pose->flags & 4u) {
         const int16_t off = GREF(int16_t, HERO_FRAMES_OFF_GROUND);
         GREF(int16_t, HERO_FRAMES_OFF_GROUND) = (int16_t)(off < 0x7FFF ? off + 1 : off);
         GREF(float, HERO_GROUND_DISTANCE) = 30.0f;
+        GREF(uint8_t, HERO_PAST_JUMP_APEX) = (uint8_t)(pose->velocity[2] < 0.001f ? 1 : 0);
+        GREF(int16_t, HERO_FRAMES_TO_LAND) = 0;
     }
     func_00283410(HERO, HERO_MOTION_ROT);
     for (unsigned r = 0; r < 4; ++r) {
