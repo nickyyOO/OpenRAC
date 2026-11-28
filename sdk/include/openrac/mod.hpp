@@ -3356,18 +3356,12 @@ inline void report(const char* where, const char* what) {
     }
 }
 
-// Runs `load_fn(mod)` for openrac_mod_load: makes the library's Mod and turns an exception out of
-// `load_fn` into the mod's refusal. Returns 0 to load, 1 to refuse.
+// Runs `load_fn(mod)` for a mod built into the port's program: makes its Mod and turns an
+// exception out of `load_fn` into the mod's refusal. Returns 0 to load, 1 to refuse. Several
+// built-in mods share one program, so they share taken() and instance(): this never lets go of
+// what an earlier load took, as that would be another built-in mod's hooks.
 template <class Load>
-int load(const openrac_api* api, openrac_mod* handle, Load&& load_fn) {
-    // The port may load a library again before the system has unloaded it: let go of what the
-    // earlier load took first.
-    for (auto release : taken()) {
-        release();
-    }
-
-    taken().clear();
-
+int load_built_in(const openrac_api* api, openrac_mod* handle, Load&& load_fn) {
     Mod* mod = nullptr;
 
     // A throw out of load_fn refuses the load with its message, as the interface has it.
@@ -3384,6 +3378,21 @@ int load(const openrac_api* api, openrac_mod* handle, Load&& load_fn) {
     }
 
     return 1;
+}
+
+// Runs `load_fn(mod)` for openrac_mod_load, as load_built_in does, for a mod in a library of its
+// own. Returns 0 to load, 1 to refuse.
+template <class Load>
+int load(const openrac_api* api, openrac_mod* handle, Load&& load_fn) {
+    // The port may load a library again before the system has unloaded it: let go of what the
+    // earlier load took first.
+    for (auto release : taken()) {
+        release();
+    }
+
+    taken().clear();
+
+    return load_built_in(api, handle, std::forward<Load>(load_fn));
 }
 
 }  // namespace detail

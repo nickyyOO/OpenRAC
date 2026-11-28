@@ -1612,7 +1612,7 @@ void query(openrac_mod_info* info) {
 }
 
 int load(const openrac_api* api, openrac_mod* mod) {
-    return openrac::detail::load(api, mod, ::load);
+    return openrac::detail::load_built_in(api, mod, ::load);
 }
 
 }  // namespace openrac::keyboard_mouse
