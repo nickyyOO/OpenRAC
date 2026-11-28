@@ -67,6 +67,7 @@ pub mod key_shortcuts;
 pub mod keyboard_mouse;
 pub mod launcher_log;
 pub mod library;
+pub mod maps;
 pub mod mod_error;
 pub mod mod_save_data;
 pub mod mod_summary;
@@ -97,6 +98,7 @@ pub mod steam;
 pub mod texture_packs;
 pub mod theme;
 pub mod update;
+pub mod wad;
 pub mod webkit;
 pub mod window;
 
